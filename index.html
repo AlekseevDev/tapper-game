@@ -10,12 +10,36 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --main-bg-color: var(--tg-theme-bg-color, #fff);
-            --text-color: var(--tg-theme-text-color, #000);
-            --button-color: var(--tg-theme-button-color, #2ea6ff);
-            --button-text-color: var(--tg-theme-button-text-color, #fff);
-            --hint-color: var(--tg-theme-hint-color, #999);
-            --secondary-bg-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            --main-bg-color: #0a0a0a;
+            --text-color: #ffffff;
+            --button-gradient: linear-gradient(45deg, #8b5cf6, #6d28d9);
+            --button-glow: 0 0 15px rgba(139, 92, 246, 0.5);
+            --hint-color: #9ca3af;
+            --secondary-bg-color: rgba(139, 92, 246, 0.1);
+        }
+
+        @keyframes gradientBorder {
+            0% {
+                border-image: linear-gradient(45deg, #8b5cf6, #ffffff, #6d28d9) 1;
+            }
+            50% {
+                border-image: linear-gradient(225deg, #6d28d9, #ffffff, #8b5cf6) 1;
+            }
+            100% {
+                border-image: linear-gradient(45deg, #8b5cf6, #ffffff, #6d28d9) 1;
+            }
+        }
+
+        @keyframes backgroundShimmer {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
         }
 
         body {
@@ -28,6 +52,9 @@
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
+            background-image: 
+                url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' fill='rgba(139, 92, 246, 0.1)' font-size='14'%3E+%3C/text%3E%3C/svg%3E");
+            background-repeat: repeat;
         }
 
         .container {
@@ -40,19 +67,22 @@
         .nav-menu {
             display: flex;
             justify-content: space-around;
-            background: var(--secondary-bg-color);
-            padding: 10px;
+            background: rgba(139, 92, 246, 0.15);
+            padding: 15px;
             border-radius: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.2);
+            backdrop-filter: blur(10px);
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 400px;
             z-index: 1000;
         }
 
         .nav-button {
-            background: none;
+            background: transparent;
             border: none;
             color: var(--text-color);
             padding: 10px 20px;
@@ -65,10 +95,9 @@
         }
 
         .nav-button.active {
-            background: var(--button-color);
-            color: var(--button-text-color);
+            background: var(--button-gradient);
+            box-shadow: var(--button-glow);
             transform: translateY(-2px);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .nav-button:active {
@@ -91,10 +120,10 @@
         .tap-button {
             width: 200px;
             height: 200px;
-            border-radius: 50%;
-            background: var(--button-color);
-            border: none;
-            color: var(--button-text-color);
+            border-radius: 20px;
+            background: var(--button-gradient);
+            border: 3px solid transparent;
+            color: var(--text-color);
             font-size: 24px;
             margin: 20px auto;
             display: flex;
@@ -103,42 +132,36 @@
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             user-select: none;
-            background-size: cover;
-            background-position: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             position: relative;
             overflow: hidden;
+            box-shadow: var(--button-glow);
+            animation: gradientBorder 3s infinite;
+        }
+
+        .tap-button::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #8b5cf6, #ffffff, #6d28d9);
+            z-index: -1;
+            background-size: 200% 200%;
+            animation: backgroundShimmer 3s ease infinite;
+            border-radius: 22px;
         }
 
         .tap-button:active {
             transform: scale(0.95);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.8);
         }
 
         .tap-button:disabled {
-            opacity: 0.7;
+            opacity: 0.5;
             cursor: not-allowed;
             transform: scale(1);
             box-shadow: none;
-        }
-
-        .tap-button::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 5px;
-            height: 5px;
-            background: rgba(255,255,255,0.8);
-            border-radius: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            opacity: 0;
-            transition: all 0.3s ease;
-        }
-
-        .tap-button:active::after {
-            transform: translate(-50%, -50%) scale(40);
-            opacity: 0;
         }
 
         .score {
@@ -146,30 +169,33 @@
             margin: 20px 0;
             text-align: center;
             font-weight: bold;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            color: var(--button-color);
+            background: linear-gradient(45deg, #8b5cf6, #ffffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: var(--button-glow);
         }
 
         .timer {
             font-size: 28px;
             margin: 15px 0;
             text-align: center;
-            color: var(--hint-color);
+            color: #8b5cf6;
             font-weight: 500;
         }
 
         .stamina-bar {
             width: 100%;
             height: 20px;
-            background: var(--secondary-bg-color);
+            background: rgba(139, 92, 246, 0.1);
             border-radius: 10px;
             overflow: hidden;
             margin: 10px 0;
+            box-shadow: inset 0 0 10px rgba(139, 92, 246, 0.2);
         }
 
         .stamina-fill {
             height: 100%;
-            background: var(--button-color);
+            background: var(--button-gradient);
             transition: width 0.3s ease;
         }
 
@@ -185,13 +211,16 @@
         }
 
         .task-item {
-            background: var(--secondary-bg-color);
+            background: rgba(139, 92, 246, 0.1);
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);
+            backdrop-filter: blur(5px);
         }
 
         .task-info {
@@ -199,16 +228,16 @@
         }
 
         .task-reward {
-            background: var(--button-color);
-            color: var(--button-text-color);
+            background: var(--button-gradient);
+            color: var(--text-color);
             padding: 5px 10px;
             border-radius: 5px;
             font-size: 14px;
         }
 
         .task-button {
-            background: var(--button-color);
-            color: var(--button-text-color);
+            background: var(--button-gradient);
+            box-shadow: var(--button-glow);
             border: none;
             padding: 8px 15px;
             border-radius: 8px;
@@ -222,9 +251,9 @@
         }
 
         .start-button {
-            background: var(--button-color);
+            background: var(--button-gradient);
             border: none;
-            color: var(--button-text-color);
+            color: var(--text-color);
             padding: 15px 30px;
             font-size: 20px;
             border-radius: 12px;
@@ -232,13 +261,35 @@
             display: block;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            box-shadow: var(--button-glow);
             font-weight: 600;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .start-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.2),
+                transparent
+            );
+            transition: 0.5s;
+        }
+
+        .start-button:hover::before {
+            left: 100%;
         }
 
         .start-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.8);
         }
 
         .start-button:active {
@@ -247,10 +298,13 @@
         }
 
         .profile-info {
-            background: var(--secondary-bg-color);
+            background: rgba(139, 92, 246, 0.1);
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);
+            backdrop-filter: blur(5px);
         }
 
         .profile-stat {
@@ -269,11 +323,14 @@
         }
 
         .skin-item {
-            background: var(--secondary-bg-color);
+            background: rgba(139, 92, 246, 0.1);
             border-radius: 10px;
             padding: 15px;
             text-align: center;
             position: relative;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);
+            backdrop-filter: blur(5px);
         }
 
         .skin-preview {
@@ -320,18 +377,21 @@
         }
 
         .achievement {
-            background: var(--secondary-bg-color);
+            background: rgba(139, 92, 246, 0.1);
             padding: 10px;
             margin: 5px 0;
             border-radius: 5px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);
+            backdrop-filter: blur(5px);
         }
 
         .achievement.unlocked {
-            background: var(--button-color);
-            color: var(--button-text-color);
+            background: var(--button-gradient);
+            border: none;
         }
     </style>
 </head>
