@@ -1,10 +1,12 @@
 import os
 import json
 import logging
-from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
+import asyncio
+from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from dotenv import load_dotenv
 import time
+from database import Database
 
 # Загрузка переменных окружения
 load_dotenv()
@@ -15,198 +17,155 @@ logging.basicConfig(
     level=logging.INFO
 )
 
+logger = logging.getLogger(__name__)
+
 # Константы
-BOT_TOKEN = "7480394291:AAFm2nXc685V7MR5ZiuXklk3LpXz8YtkqwA"
-WEBAPP_URL = "https://alekseevdev.github.io/tapper-game/"
 APP_VERSION = "2.1.0"
 
-# Хранение данных пользователей
-user_data = {}
-leaderboard = {}
+# Инициализация базы данных
+db = Database('game.db')
 
-# Скины и их условия
-SKINS = {
-    'default': {'name': 'Стандартный', 'requirement': 0},
-    'bronze': {'name': 'Бронзовый', 'requirement': 100},
-    'silver': {'name': 'Серебряный', 'requirement': 500},
-    'gold': {'name': 'Золотой', 'requirement': 1000}
-}
-
-# Достижения
-ACHIEVEMENTS = [
-    {'id': 'first100', 'name': '100 тапов', 'requirement': 100},
-    {'id': 'first500', 'name': '500 тапов', 'requirement': 500},
-    {'id': 'first1000', 'name': '1000 тапов', 'requirement': 1000}
-]
-
-def init_user_data(user_id, username):
-    """Инициализация данных пользователя"""
-    if user_id not in user_data:
-        user_data[user_id] = {
-            'username': username,
-            'total_taps': 0,
-            'best_score': 0,
-            'current_skin': 'default',
-            'unlocked_skins': ['default'],
-            'achievements': [],
-            'app_version': None  # Добавляем отслеживание версии приложения
-        }
-
-def check_achievements(user_id):
-    """Проверка достижений пользователя"""
-    user = user_data[user_id]
-    new_achievements = []
-    
-    for achievement in ACHIEVEMENTS:
-        if (achievement['id'] not in user['achievements'] and 
-            user['total_taps'] >= achievement['requirement']):
-            user['achievements'].append(achievement['id'])
-            new_achievements.append(achievement['name'])
-    
-    return new_achievements
-
-def check_skins(user_id):
-    """Проверка доступных скинов"""
-    user = user_data[user_id]
-    new_skins = []
-    
-    for skin_id, skin_data in SKINS.items():
-        if (skin_id not in user['unlocked_skins'] and 
-            user['total_taps'] >= skin_data['requirement']):
-            user['unlocked_skins'].append(skin_id)
-            new_skins.append(skin_data['name'])
-    
-    return new_skins
+async def cleanup_task(context: ContextTypes.DEFAULT_TYPE):
+    """Периодическая очистка старых записей"""
+    try:
+        db.cleanup_old_records()
+        logger.info("Очистка старых записей выполнена успешно")
+    except Exception as e:
+        logger.error(f"Ошибка при очистке старых записей: {e}")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
-    user_id = update.effective_user.id
-    username = update.effective_user.username or "Игрок"
-    
-    # Инициализация данных пользователя
-    init_user_data(user_id, username)
-    user = user_data[user_id]
-    
-    # Проверяем версию приложения
-    if user['app_version'] != APP_VERSION:
-        user['app_version'] = APP_VERSION
-        webapp_url = f"{WEBAPP_URL}?v={APP_VERSION}"  # Добавляем версию в URL
-    else:
-        webapp_url = WEBAPP_URL
-    
-    keyboard = [[
-        InlineKeyboardButton(
-            "🎮 Начать игру",
-            web_app=WebAppInfo(url=webapp_url)
-        )
-    ]]
+    keyboard = [[InlineKeyboardButton(
+        "Играть", 
+        web_app=WebAppInfo(url=f"https://alekseevdev.github.io/tapper-game/?v={APP_VERSION}&t={int(time.time())}")
+    )]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        "🎮 Добро пожаловать в игру Тапалка!\n\n"
-        "Нажми кнопку ниже, чтобы начать игру:",
+        "Добро пожаловать в Tapper Game!\nНажимайте кнопку 'Играть', чтобы начать.",
         reply_markup=reply_markup
     )
 
-async def check_subscription(bot, user_id, channel_username):
-    """Проверка подписки пользователя на канал"""
-    try:
-        chat_member = await bot.get_chat_member(chat_id=channel_username, user_id=user_id)
-        return chat_member.status in ['member', 'administrator', 'creator']
-    except Exception as e:
-        logging.error(f"Error checking subscription: {e}")
-        return False
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик текстовых сообщений"""
-    # Пустая функция, так как админ-консоль удалена
-    pass
+    """Обработчик входящих сообщений"""
+    if update.message.text == "CONSOLEMOD":
+        # Проверяем, является ли пользователь администратором
+        admin_id = context.bot_data.get('admin_id')
+        if not admin_id:
+            # Первый, кто отправил CONSOLEMOD, становится админом
+            context.bot_data['admin_id'] = update.effective_user.id
+            await update.message.reply_text("Вы назначены администратором. Используйте админ-консоль для управления интерфейсом.")
+        elif admin_id == update.effective_user.id:
+            # Отправляем админ-консоль
+            keyboard = [[InlineKeyboardButton(
+                "Открыть админ-консоль", 
+                web_app=WebAppInfo(url=f"https://alekseevdev.github.io/tapper-game/admin.html?v={APP_VERSION}&t={int(time.time())}")
+            )]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text("Админ-консоль:", reply_markup=reply_markup)
+        else:
+            await update.message.reply_text("У вас нет прав администратора.")
 
 async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик данных от веб-приложения"""
     try:
         data = json.loads(update.effective_message.web_app_data.data)
         user_id = update.effective_user.id
-        username = update.effective_user.username or "Игрок"
         
-        # Инициализация данных пользователя
-        init_user_data(user_id, username)
-        user = user_data[user_id]
-        
-        if data['action'] == 'gameEnd':
-            score = data['score']
-            total_taps = data.get('totalTaps', score)
-            
-            # Обновляем статистику
-            user['total_taps'] = total_taps
-            if score > user['best_score']:
-                user['best_score'] = score
-            
-            # Проверяем новые достижения и скины
-            new_achievements = check_achievements(user_id)
-            new_skins = check_skins(user_id)
-            
-            # Обновляем таблицу лидеров
-            leaderboard[user_id] = {
-                'username': username,
-                'best_score': user['best_score']
+        if data.get('action') == 'gameEnd':
+            # Получаем текущие данные игрока
+            current_player = db.get_player(user_id) or {
+                'total_taps': 0,
+                'best_score': 0,
+                'tap_power': 1
             }
             
+            # Обновляем данные игрока
+            new_total_taps = current_player['total_taps'] + data.get('score', 0)
+            new_best_score = max(current_player['best_score'], data.get('score', 0))
+            
+            player_data = {
+                'nickname': data.get('nickname', 'Игрок'),
+                'avatar': data.get('avatar', 'avatar1'),
+                'total_taps': new_total_taps,
+                'best_score': new_best_score,
+                'tap_power': data.get('tapPower', current_player['tap_power']),
+                'taps_per_minute': data.get('tapsPerMinute', 0)
+            }
+            db.update_player(user_id, player_data)
+            
             # Формируем сообщение с результатами
-            message = f"🎯 Твой результат: {score} тапов\n"
-            
-            if score > user['best_score']:
-                message += "🏆 Новый рекорд!\n\n"
-            
-            if new_achievements:
-                message += "🎉 Новые достижения:\n"
-                for achievement in new_achievements:
-                    message += f"✨ {achievement}\n"
-                message += "\n"
-            
-            if new_skins:
-                message += "🎨 Новые скины:\n"
-                for skin in new_skins:
-                    message += f"🎁 {skin}\n"
-            
-            # Добавляем кнопку для новой игры
-            keyboard = [[
-                InlineKeyboardButton(
-                    "🎮 Играть снова",
-                    web_app=WebAppInfo(url=WEBAPP_URL)
-                )
-            ]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await update.effective_message.reply_text(
-                message,
-                reply_markup=reply_markup
+            message = (
+                f"🎮 Игра завершена!\n"
+                f"📊 Результат: {data['score']} тапов\n"
+                f"⚡ Тапов в минуту: {data['tapsPerMinute']}\n"
+                f"🏆 Всего тапов: {new_total_taps}"
             )
-        elif data['action'] == 'checkSubscription':
-            channel = data.get('channel')
-            if channel:
-                is_subscribed = await check_subscription(context.bot, user_id, channel)
-                await update.effective_message.reply_text(
-                    json.dumps({'subscribed': is_subscribed})
-                )
             
+            if data['score'] >= new_best_score:
+                message += "\n🌟 Новый рекорд!"
+            
+            await update.message.reply_text(message)
+
+        elif data.get('action') == 'getLeaderboard':
+            # Отправляем данные таблицы лидеров
+            leaderboard = db.get_leaderboard()
+            await update.message.reply_text(
+                json.dumps({'leaderboard': leaderboard}),
+                disable_web_page_preview=True
+            )
+
+        elif data.get('action') == 'checkSubscription':
+            # Проверяем подписку на канал
+            channel = data.get('channel', '').replace('@', '')
+            try:
+                member = await context.bot.get_chat_member(f"@{channel}", user_id)
+                is_member = member.status in ['member', 'administrator', 'creator']
+                if is_member:
+                    # Отмечаем выполнение задания
+                    db.complete_task(user_id, f"channel_{channel}")
+                await update.message.reply_text(json.dumps({'subscribed': is_member}))
+            except Exception as e:
+                await update.message.reply_text(json.dumps({'subscribed': False, 'error': str(e)}))
+
+        elif data.get('action') == 'adminUpdate':
+            # Проверяем права администратора
+            if user_id == context.bot_data.get('admin_id'):
+                # Обновляем версию приложения
+                global APP_VERSION
+                APP_VERSION = data.get('version', APP_VERSION)
+                await update.message.reply_text("✅ Настройки интерфейса обновлены")
+            else:
+                await update.message.reply_text("❌ У вас нет прав администратора")
+
     except Exception as e:
-        logging.error(f"Ошибка при обработке данных веб-приложения: {e}")
-        await update.effective_message.reply_text(
-            "Произошла ошибка при обработке данных."
-        )
+        logger.error(f"Ошибка при обработке данных: {e}")
+        await update.message.reply_text(f"❌ Произошла ошибка: {str(e)}")
 
 def main():
     """Запуск бота"""
-    application = Application.builder().token(BOT_TOKEN).build()
-    
-    # Обработчики команд
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_webapp_data))
-    
-    # Запуск бота
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    try:
+        # Загружаем токен из файла
+        with open('token.txt', 'r') as f:
+            token = f.read().strip()
+
+        # Создаем приложение
+        application = Application.builder().token(token).build()
+
+        # Добавляем обработчики
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_webapp_data))
+
+        # Добавляем задачу очистки старых записей (каждые 24 часа)
+        application.job_queue.run_repeating(cleanup_task, interval=86400)
+
+        # Запускаем бота
+        logger.info("Бот запущен")
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+    except Exception as e:
+        logger.error(f"Ошибка при запуске бота: {e}")
 
 if __name__ == '__main__':
     main() 

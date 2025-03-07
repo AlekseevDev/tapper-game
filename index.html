@@ -118,13 +118,12 @@
         }
 
         .tap-button {
-            width: 200px;
-            height: 200px;
-            border-radius: 20px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
             background: var(--button-gradient);
-            border: 3px solid transparent;
+            border: none;
             color: var(--text-color);
-            font-size: 24px;
             margin: 20px auto;
             display: flex;
             align-items: center;
@@ -135,21 +134,20 @@
             position: relative;
             overflow: hidden;
             box-shadow: var(--button-glow);
-            animation: gradientBorder 3s infinite;
         }
 
         .tap-button::before {
             content: '';
             position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background: linear-gradient(45deg, #8b5cf6, #ffffff, #6d28d9);
             z-index: -1;
             background-size: 200% 200%;
             animation: backgroundShimmer 3s ease infinite;
-            border-radius: 22px;
+            border-radius: 50%;
         }
 
         .tap-button:active {
@@ -305,6 +303,30 @@
             border: 1px solid rgba(139, 92, 246, 0.2);
             box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);
             backdrop-filter: blur(5px);
+            position: relative;
+        }
+
+        .settings-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--button-gradient);
+            border: none;
+            color: var(--text-color);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
+            box-shadow: var(--button-glow);
+            transition: all 0.3s ease;
+        }
+
+        .settings-button:hover {
+            transform: rotate(45deg);
         }
 
         .profile-stat {
@@ -393,6 +415,133 @@
             background: var(--button-gradient);
             border: none;
         }
+
+        /* Стили для настроек */
+        .settings-section {
+            background: rgba(139, 92, 246, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);
+            backdrop-filter: blur(5px);
+        }
+
+        .settings-group {
+            margin-bottom: 20px;
+        }
+
+        .settings-group h4 {
+            color: var(--text-color);
+            margin-bottom: 10px;
+        }
+
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .avatar-item {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .avatar-item.selected {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
+        }
+
+        .nickname-input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            background: rgba(139, 92, 246, 0.1);
+            color: var(--text-color);
+            margin-top: 5px;
+            font-size: 16px;
+        }
+
+        .nickname-input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+        }
+
+        /* Стили для таблицы лидеров */
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .leaderboard-table th,
+        .leaderboard-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+        }
+
+        .leaderboard-table th {
+            color: #8b5cf6;
+            font-weight: 600;
+        }
+
+        .leaderboard-table tr.current-user {
+            background: rgba(139, 92, 246, 0.2);
+        }
+
+        /* Стили для системы прокачки */
+        .upgrade-section {
+            background: rgba(139, 92, 246, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .upgrade-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: rgba(139, 92, 246, 0.15);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .upgrade-info {
+            flex: 1;
+        }
+
+        .upgrade-cost {
+            color: #8b5cf6;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .upgrade-button {
+            background: var(--button-gradient);
+            border: none;
+            color: var(--text-color);
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .upgrade-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -400,13 +549,7 @@
         <div id="gameSection" class="section active">
             <div class="score">Счёт: <span id="score">0</span></div>
             <div class="timer" id="timer">Время: 60с</div>
-            <div class="stamina-bar">
-                <div id="staminaFill" class="stamina-fill" style="width: 100%"></div>
-            </div>
-            <div id="staminaText" class="stamina-text">Стамина: 1000/1000</div>
-            <button class="tap-button" id="tapButton" disabled>
-                ТАП!
-            </button>
+            <button class="tap-button" id="tapButton" disabled></button>
             <button class="start-button" id="startButton">
                 Начать игру
             </button>
@@ -415,6 +558,11 @@
         <div id="profileSection" class="section">
             <div class="profile-info">
                 <h3>Ваш профиль</h3>
+                <button class="settings-button" id="settingsButton">⚙️</button>
+                <div class="profile-stat">
+                    <span>Никнейм:</span>
+                    <span id="profileNickname">Игрок</span>
+                </div>
                 <div class="profile-stat">
                     <span>Всего тапов:</span>
                     <span id="totalTaps">0</span>
@@ -424,8 +572,8 @@
                     <span id="bestScore">0</span>
                 </div>
                 <div class="profile-stat">
-                    <span>Текущий скин:</span>
-                    <span id="currentSkin">Стандартный</span>
+                    <span>Сила тапа:</span>
+                    <span id="tapPower">1</span>
                 </div>
             </div>
             <div class="achievements">
@@ -434,21 +582,54 @@
             </div>
         </div>
 
-        <div id="shopSection" class="section">
-            <h3>Магазин скинов</h3>
-            <div class="skins-grid" id="skinsGrid"></div>
+        <div id="settingsSection" class="section">
+            <div class="settings-section">
+                <div class="settings-group">
+                    <h4>Аватарка</h4>
+                    <div class="avatar-grid" id="avatarGrid">
+                        <!-- Аватарки будут добавлены через JavaScript -->
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h4>Никнейм</h4>
+                    <input type="text" class="nickname-input" id="nicknameInput" placeholder="Введите ваш никнейм" maxlength="20">
+                </div>
+            </div>
         </div>
 
-        <div id="tasksSection" class="section">
-            <h3>Задания</h3>
-            <div id="tasksList" class="tasks-section"></div>
+        <div id="leaderboardSection" class="section">
+            <h3>Таблица лидеров</h3>
+            <div class="leaderboard">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>Место</th>
+                            <th>Игрок</th>
+                            <th>Тапов/мин</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardBody">
+                        <!-- Данные таблицы лидеров будут добавлены через JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="upgradeSection" class="section">
+            <h3>Прокачка</h3>
+            <div class="upgrade-section">
+                <div id="upgradesList">
+                    <!-- Элементы прокачки будут добавлены через JavaScript -->
+                </div>
+            </div>
         </div>
 
         <div class="nav-menu">
             <button class="nav-button active" data-section="game">🎮</button>
             <button class="nav-button" data-section="profile">👤</button>
-            <button class="nav-button" data-section="shop">🎨</button>
-            <button class="nav-button" data-section="tasks">📋</button>
+            <button class="nav-button" data-section="leaderboard">🏆</button>
+            <button class="nav-button" data-section="upgrade">⚡</button>
+            <button class="nav-button" data-section="settings">⚙️</button>
         </div>
     </div>
 
@@ -504,48 +685,33 @@
         }
 
         // Константы
-        const STAMINA_MAX = 1000;
-        const STAMINA_REGEN_TIME = 120; // 2 минуты
-        const STAMINA_REGEN_RATE = STAMINA_MAX / STAMINA_REGEN_TIME;
+        const GAME_DURATION = 60;
+        const LEADERBOARD_UPDATE_INTERVAL = 5000; // 5 секунд
+        const MAX_LEADERBOARD_PLAYERS = 500;
 
         // Игровые переменные
         let score = 0;
         let gameActive = false;
         let timer;
-        let stamina = getFromStorage('stamina', STAMINA_MAX);
-        let staminaRegenTimeout;
-        let lastStaminaUpdate = getFromStorage('lastStaminaUpdate', Date.now());
         let totalTaps = getFromStorage('totalTaps', 0);
         let bestScore = getFromStorage('bestScore', 0);
-        let currentSkin = getFromStorage('currentSkin', 'default');
-        
-        const GAME_DURATION = 60;
-        
-        // Скины и их условия разблокировки
-        const skins = {
-            default: {
-                name: 'Стандартный',
-                image: 'skins/default.png',
-                unlocked: true,
-                requirement: 0
+        let tapPower = getFromStorage('tapPower', 1);
+        let nickname = getFromStorage('nickname', 'Игрок');
+        let selectedAvatar = getFromStorage('selectedAvatar', 'avatar1');
+
+        // Аватарки
+        const avatars = {
+            avatar1: {
+                name: 'Фиолетовый кристалл',
+                url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjOGI1Y2Y2Ii8+PHBvbHlnb24gcG9pbnRzPSI0MCwxMCAyMCw0MCA0MCw3MCA2MCw0MCIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg=='
             },
-            bronze: {
-                name: 'Бронзовый',
-                image: 'skins/bronze.png',
-                unlocked: false,
-                requirement: 100
+            avatar2: {
+                name: 'Пиксельная звезда',
+                url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjNmQyOGQ5Ii8+PHBvbHlnb24gcG9pbnRzPSI0MCwxMCAzMCwzMCAxMCwzMCAyNSw0NSAxNSw3MCA0MCw1NSA2NSw3MCA1NSw0NSA3MCwzMCA1MCwzMCIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg=='
             },
-            silver: {
-                name: 'Серебряный',
-                image: 'skins/silver.png',
-                unlocked: false,
-                requirement: 500
-            },
-            gold: {
-                name: 'Золотой',
-                image: 'skins/gold.png',
-                unlocked: false,
-                requirement: 1000
+            avatar3: {
+                name: 'Пиксельное сердце',
+                url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjYTc4YmZhIi8+PHBhdGggZD0iTTIwLDMwIGgyMHYtMTBoMTB2MTBoMjB2MTBoLTEwdjIwaC0zMHYtMjBoLTEweiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg=='
             }
         };
 
@@ -605,13 +771,13 @@
             timerElement: document.getElementById('timer'),
             totalTapsElement: document.getElementById('totalTaps'),
             bestScoreElement: document.getElementById('bestScore'),
-            currentSkinElement: document.getElementById('currentSkin'),
-            achievementsList: document.getElementById('achievementsList'),
-            skinsGrid: document.getElementById('skinsGrid'),
-            leaderboardList: document.getElementById('leaderboardList'),
-            staminaFill: document.getElementById('staminaFill'),
-            staminaText: document.getElementById('staminaText'),
-            tasksList: document.getElementById('tasksList')
+            tapPowerElement: document.getElementById('tapPower'),
+            profileNicknameElement: document.getElementById('profileNickname'),
+            nicknameInput: document.getElementById('nicknameInput'),
+            avatarGrid: document.getElementById('avatarGrid'),
+            leaderboardBody: document.getElementById('leaderboardBody'),
+            upgradesList: document.getElementById('upgradesList'),
+            settingsButton: document.getElementById('settingsButton')
         };
 
         // Функция для безопасного обновления текстового содержимого
@@ -625,83 +791,136 @@
         function initializeDisplay() {
             safeSetTextContent(elements.totalTapsElement, totalTaps);
             safeSetTextContent(elements.bestScoreElement, bestScore);
-            safeSetTextContent(elements.currentSkinElement, skins[currentSkin]?.name || 'Стандартный');
+            safeSetTextContent(elements.tapPowerElement, tapPower);
+            safeSetTextContent(elements.profileNicknameElement, nickname);
             if (elements.tapButton && skins[currentSkin]) {
                 elements.tapButton.style.backgroundImage = `url('${skins[currentSkin].image}')`;
             }
-            updateStamina();
         }
 
-        function updateStamina() {
-            const now = Date.now();
-            const timePassed = (now - lastStaminaUpdate) / 1000;
-            lastStaminaUpdate = now;
+        // Инициализация аватарок
+        function initializeAvatars() {
+            elements.avatarGrid.innerHTML = Object.entries(avatars).map(([id, avatar]) => `
+                <div class="avatar-item ${selectedAvatar === id ? 'selected' : ''}"
+                     style="background-image: url('${avatar.url}')"
+                     data-avatar-id="${id}"
+                     title="${avatar.name}">
+                </div>
+            `).join('');
 
-            if (stamina < STAMINA_MAX) {
-                stamina = Math.min(STAMINA_MAX, stamina + (timePassed * STAMINA_REGEN_RATE));
-                saveToStorage('stamina', stamina);
-                saveToStorage('lastStaminaUpdate', lastStaminaUpdate);
+            elements.avatarGrid.querySelectorAll('.avatar-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const avatarId = item.dataset.avatarId;
+                    selectedAvatar = avatarId;
+                    saveToStorage('selectedAvatar', avatarId);
+                    updateAvatarSelection();
+                });
+            });
+        }
+
+        function updateAvatarSelection() {
+            elements.avatarGrid.querySelectorAll('.avatar-item').forEach(item => {
+                item.classList.toggle('selected', item.dataset.avatarId === selectedAvatar);
+            });
+        }
+
+        // Обработка изменения никнейма
+        elements.nicknameInput.value = nickname;
+        elements.nicknameInput.addEventListener('change', () => {
+            nickname = elements.nicknameInput.value.trim() || 'Игрок';
+            saveToStorage('nickname', nickname);
+            elements.profileNicknameElement.textContent = nickname;
+        });
+
+        // Система прокачки
+        function calculateUpgradeCost(currentPower) {
+            return currentPower * 1000;
+        }
+
+        function updateUpgradesList() {
+            const upgradeCost = calculateUpgradeCost(tapPower);
+            elements.upgradesList.innerHTML = `
+                <div class="upgrade-item">
+                    <div class="upgrade-info">
+                        <div>Сила тапа: ${tapPower}</div>
+                        <div class="upgrade-cost">Стоимость: ${upgradeCost} тапов</div>
+                    </div>
+                    <button class="upgrade-button" 
+                            onclick="upgradeTapPower()"
+                            ${totalTaps < upgradeCost ? 'disabled' : ''}>
+                        Улучшить
+                    </button>
+                </div>
+            `;
+        }
+
+        function upgradeTapPower() {
+            const cost = calculateUpgradeCost(tapPower);
+            if (totalTaps >= cost) {
+                totalTaps -= cost;
+                tapPower++;
+                saveToStorage('tapPower', tapPower);
+                saveToStorage('totalTaps', totalTaps);
+                elements.tapPowerElement.textContent = tapPower;
+                elements.totalTapsElement.textContent = totalTaps;
+                updateUpgradesList();
             }
+        }
 
-            const staminaPercent = (stamina / STAMINA_MAX) * 100;
-            elements.staminaFill.style.width = `${staminaPercent}%`;
-            elements.staminaText.textContent = 
-                `Стамина: ${Math.floor(stamina)}/${STAMINA_MAX}`;
+        // Таблица лидеров
+        let leaderboardData = [];
+        let leaderboardUpdateTimer;
 
-            if (gameActive && stamina <= 0) {
-                endGame();
+        function updateLeaderboard() {
+            try {
+                tg.sendData(JSON.stringify({
+                    action: 'getLeaderboard'
+                }));
+            } catch (e) {
+                console.warn('Error requesting leaderboard:', e);
             }
         }
 
-        function startStaminaRegen() {
-            clearTimeout(staminaRegenTimeout);
-            staminaRegenTimeout = setInterval(updateStamina, 1000);
+        function handleLeaderboardUpdate(data) {
+            leaderboardData = data;
+            renderLeaderboard();
         }
 
+        function renderLeaderboard() {
+            elements.leaderboardBody.innerHTML = leaderboardData.map((player, index) => `
+                <tr class="${player.nickname === nickname ? 'current-user' : ''}">
+                    <td>${index + 1}</td>
+                    <td>
+                        <img src="${avatars[player.avatar]?.url || avatars.avatar1.url}" 
+                             alt="Avatar" 
+                             style="width: 24px; height: 24px; border-radius: 50%; vertical-align: middle; margin-right: 8px;">
+                        ${player.nickname}
+                    </td>
+                    <td>${player.tapsPerMinute}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Обновление функции handleTap
         function handleTap(event) {
             if (event) {
                 event.preventDefault();
             }
-            if (!gameActive || stamina <= 0) return;
+            if (!gameActive) return;
 
-            score++;
-            totalTaps++;
-            stamina--;
+            score += tapPower;
+            totalTaps += tapPower;
             
             saveToStorage('totalTaps', totalTaps);
-            saveToStorage('stamina', stamina);
             
             safeSetTextContent(elements.scoreElement, score);
             safeSetTextContent(elements.totalTapsElement, totalTaps);
-            updateStamina();
             
             checkAchievements();
-            checkSkinUnlocks();
+            updateUpgradesList();
         }
 
-        function startGame() {
-            score = 0;
-            gameActive = true;
-            let timeLeft = GAME_DURATION;
-            
-            safeSetTextContent(elements.scoreElement, score);
-            if (elements.tapButton) {
-                elements.tapButton.disabled = false;
-            }
-            if (elements.startButton) {
-                elements.startButton.disabled = true;
-            }
-            
-            timer = setInterval(() => {
-                timeLeft--;
-                safeSetTextContent(elements.timerElement, `Время: ${timeLeft}с`);
-                
-                if (timeLeft <= 0) {
-                    endGame();
-                }
-            }, 1000);
-        }
-
+        // Обновление функции endGame
         function endGame() {
             if (timer) {
                 clearInterval(timer);
@@ -721,17 +940,17 @@
                 safeSetTextContent(elements.bestScoreElement, bestScore);
             }
             
-            stamina = STAMINA_MAX;
-            saveToStorage('stamina', stamina);
-            saveToStorage('lastStaminaUpdate', Date.now());
-            updateStamina();
+            const tapsPerMinute = Math.round((score / GAME_DURATION) * 60);
             
             try {
                 tg.sendData(JSON.stringify({
                     action: 'gameEnd',
                     score: score,
                     totalTaps: totalTaps,
-                    bestScore: bestScore
+                    bestScore: bestScore,
+                    tapsPerMinute: tapsPerMinute,
+                    nickname: nickname,
+                    avatar: selectedAvatar
                 }));
             } catch (e) {
                 console.warn('Error sending data to Telegram:', e);
@@ -762,33 +981,6 @@
                     .map(a => a.id);
                 localStorage.setItem('unlockedAchievements', JSON.stringify(unlockedIds));
                 updateAchievements();
-            }
-        }
-
-        function checkSkinUnlocks() {
-            let changed = false;
-            for (let skinId in skins) {
-                const skin = skins[skinId];
-                if (!skin.unlocked && totalTaps >= skin.requirement) {
-                    skin.unlocked = true;
-                    changed = true;
-                    
-                    tg.showPopup({
-                        title: 'Новый скин!',
-                        message: `Вы разблокировали скин: ${skin.name}`,
-                        buttons: [{
-                            type: 'ok',
-                            text: '🎨 Круто!'
-                        }]
-                    });
-                }
-            }
-            
-            if (changed) {
-                const unlockedIds = Object.keys(skins)
-                    .filter(id => skins[id].unlocked);
-                localStorage.setItem('unlockedSkins', JSON.stringify(unlockedIds));
-                updateSkinsGrid();
             }
         }
 
@@ -981,11 +1173,6 @@
                     if (elements.tapButton) {
                         elements.tapButton.textContent = settings.layout.tapButtonText;
                     }
-                    
-                    const staminaElements = document.querySelectorAll('.stamina-bar, .stamina-text');
-                    staminaElements.forEach(el => {
-                        el.style.display = settings.layout.showStamina ? 'block' : 'none';
-                    });
                 }
             } catch (e) {
                 console.warn('Error loading interface settings:', e);
@@ -996,16 +1183,26 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeDisplay();
             initializeEventListeners();
+            initializeAvatars();
+            updateUpgradesList();
+            
+            // Запуск обновления таблицы лидеров
+            updateLeaderboard();
+            leaderboardUpdateTimer = setInterval(updateLeaderboard, LEADERBOARD_UPDATE_INTERVAL);
+            
+            elements.profileNicknameElement.textContent = nickname;
+            elements.tapPowerElement.textContent = tapPower;
             updateAchievements();
             updateSkinsGrid();
             updateTasksList();
-            startStaminaRegen();
             loadInterfaceSettings(); // Загружаем настройки интерфейса
         });
 
         // Очистка при выходе
         window.addEventListener('beforeunload', function() {
-            clearInterval(staminaRegenTimeout);
+            if (leaderboardUpdateTimer) {
+                clearInterval(leaderboardUpdateTimer);
+            }
         });
     </script>
 </body>
