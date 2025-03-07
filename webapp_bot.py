@@ -20,7 +20,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Константы
-APP_VERSION = "2.3.6"
+APP_VERSION = "2.3.7"
 
 # Инициализация базы данных
 db = Database('game.db')
@@ -77,7 +77,8 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
             current_player = db.get_player(user_id) or {
                 'total_taps': 0,
                 'best_score': 0,
-                'tap_power': 1
+                'tap_power': 1,
+                'taps_per_minute': 0
             }
             
             # Обновляем данные игрока
@@ -90,8 +91,11 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 'total_taps': new_total_taps,
                 'best_score': new_best_score,
                 'tap_power': data.get('tapPower', current_player['tap_power']),
-                'taps_per_minute': data.get('tapsPerMinute', 0)
+                'taps_per_minute': data.get('tapsPerMinute', 0),
+                'score': data.get('score', 0)  # Добавляем текущий счет для истории
             }
+            
+            # Обновляем данные в базе
             db.update_player(user_id, player_data)
             
             # Формируем сообщение с результатами
@@ -108,7 +112,7 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text(message)
 
         elif data.get('action') == 'getLeaderboard':
-            # Отправляем данные таблицы лидеров
+            # Получаем данные таблицы лидеров
             leaderboard = db.get_leaderboard()
             await update.message.reply_text(
                 json.dumps({'leaderboard': leaderboard}),
