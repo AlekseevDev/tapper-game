@@ -849,83 +849,6 @@
             });
         }
 
-        // Обработка изменения никнейма
-        elements.nicknameInput.value = nickname;
-        elements.nicknameInput.addEventListener('change', () => {
-            nickname = elements.nicknameInput.value.trim() || 'Игрок';
-            saveToStorage('nickname', nickname);
-            elements.profileNicknameElement.textContent = nickname;
-        });
-
-        // Система прокачки
-        function calculateUpgradeCost(currentPower) {
-            return currentPower * 1000;
-        }
-
-        function updateUpgradesList() {
-            const upgradeCost = calculateUpgradeCost(tapPower);
-            elements.upgradesList.innerHTML = `
-                <div class="upgrade-item">
-                    <div class="upgrade-info">
-                        <div>Сила тапа: ${tapPower}</div>
-                        <div class="upgrade-cost">Стоимость: ${upgradeCost} тапов</div>
-                    </div>
-                    <button class="upgrade-button" 
-                            onclick="upgradeTapPower()"
-                            ${totalTaps < upgradeCost ? 'disabled' : ''}>
-                        Улучшить
-                    </button>
-                </div>
-            `;
-        }
-
-        function upgradeTapPower() {
-            const cost = calculateUpgradeCost(tapPower);
-            if (totalTaps >= cost) {
-                totalTaps -= cost;
-                tapPower++;
-                saveToStorage('tapPower', tapPower);
-                saveToStorage('totalTaps', totalTaps);
-                elements.tapPowerElement.textContent = tapPower;
-                elements.totalTapsElement.textContent = totalTaps;
-                updateUpgradesList();
-            }
-        }
-
-        // Таблица лидеров
-        let leaderboardData = [];
-        let leaderboardUpdateTimer;
-
-        function updateLeaderboard() {
-            try {
-                tg.sendData(JSON.stringify({
-                    action: 'getLeaderboard'
-                }));
-            } catch (e) {
-                console.warn('Error requesting leaderboard:', e);
-            }
-        }
-
-        function handleLeaderboardUpdate(data) {
-            leaderboardData = data;
-            renderLeaderboard();
-        }
-
-        function renderLeaderboard() {
-            elements.leaderboardBody.innerHTML = leaderboardData.map((player, index) => `
-                <tr class="${player.nickname === nickname ? 'current-user' : ''}">
-                    <td>${index + 1}</td>
-                    <td>
-                        <img src="${avatars[player.avatar]?.url || avatars.avatar1.url}" 
-                             alt="Avatar" 
-                             style="width: 24px; height: 24px; border-radius: 50%; vertical-align: middle; margin-right: 8px;">
-                        ${player.nickname}
-                    </td>
-                    <td>${player.tapsPerMinute}</td>
-                </tr>
-            `).join('');
-        }
-
         // Инициализация обработчиков событий
         function initializeEventListeners() {
             // Предотвращение зума
@@ -947,7 +870,10 @@
 
             // Кнопка старта
             if (elements.startButton) {
-                elements.startButton.addEventListener('click', startGame);
+                elements.startButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    startGame();
+                });
             }
 
             // Навигация
@@ -981,6 +907,18 @@
                     });
                 });
             }
+
+            // Обработка изменения никнейма
+            if (elements.nicknameInput) {
+                elements.nicknameInput.value = nickname;
+                elements.nicknameInput.addEventListener('change', () => {
+                    nickname = elements.nicknameInput.value.trim() || 'Игрок';
+                    saveToStorage('nickname', nickname);
+                    if (elements.profileNicknameElement) {
+                        elements.profileNicknameElement.textContent = nickname;
+                    }
+                });
+            }
         }
 
         // Функция запуска игры
@@ -991,14 +929,24 @@
             gameActive = true;
             let timeLeft = GAME_DURATION;
             
-            elements.scoreElement.textContent = score;
-            elements.tapButton.disabled = false;
-            elements.startButton.disabled = true;
-            elements.timerElement.textContent = `Время: ${timeLeft}с`;
+            if (elements.scoreElement) {
+                elements.scoreElement.textContent = score;
+            }
+            if (elements.tapButton) {
+                elements.tapButton.disabled = false;
+            }
+            if (elements.startButton) {
+                elements.startButton.disabled = true;
+            }
+            if (elements.timerElement) {
+                elements.timerElement.textContent = `Время: ${timeLeft}с`;
+            }
             
             timer = setInterval(() => {
                 timeLeft--;
-                elements.timerElement.textContent = `Время: ${timeLeft}с`;
+                if (elements.timerElement) {
+                    elements.timerElement.textContent = `Время: ${timeLeft}с`;
+                }
                 
                 if (timeLeft <= 0) {
                     endGame();
@@ -1022,7 +970,6 @@
                 elements.totalTapsElement.textContent = totalTaps;
             }
             
-            checkAchievements();
             updateUpgradesList();
         }
 
@@ -1032,14 +979,23 @@
                 clearInterval(timer);
             }
             gameActive = false;
-            elements.tapButton.disabled = true;
-            elements.startButton.disabled = false;
-            elements.timerElement.textContent = `Время: ${GAME_DURATION}с`;
+            
+            if (elements.tapButton) {
+                elements.tapButton.disabled = true;
+            }
+            if (elements.startButton) {
+                elements.startButton.disabled = false;
+            }
+            if (elements.timerElement) {
+                elements.timerElement.textContent = `Время: ${GAME_DURATION}с`;
+            }
             
             if (score > bestScore) {
                 bestScore = score;
                 saveToStorage('bestScore', bestScore);
-                elements.bestScoreElement.textContent = bestScore;
+                if (elements.bestScoreElement) {
+                    elements.bestScoreElement.textContent = bestScore;
+                }
             }
             
             const tapsPerMinute = Math.round((score / GAME_DURATION) * 60);
@@ -1060,137 +1016,44 @@
             }
         }
 
-        function checkAchievements() {
-            let changed = false;
-            achievements.forEach(achievement => {
-                if (!achievement.unlocked && totalTaps >= achievement.requirement) {
-                    achievement.unlocked = true;
-                    changed = true;
-                    
-                    tg.showPopup({
-                        title: 'Новое достижение!',
-                        message: `Вы разблокировали: ${achievement.name}`,
-                        buttons: [{
-                            type: 'ok',
-                            text: '🎉 Круто!'
-                        }]
-                    });
-                }
-            });
+        // Система прокачки
+        function calculateUpgradeCost(currentPower) {
+            return currentPower * 1000;
+        }
+
+        function updateUpgradesList() {
+            if (!elements.upgradesList) return;
             
-            if (changed) {
-                const unlockedIds = achievements
-                    .filter(a => a.unlocked)
-                    .map(a => a.id);
-                localStorage.setItem('unlockedAchievements', JSON.stringify(unlockedIds));
-                updateAchievements();
-            }
-        }
-
-        function updateAchievements() {
-            elements.achievementsList.innerHTML = achievements.map(achievement => `
-                <div class="achievement ${achievement.unlocked ? 'unlocked' : ''}">
-                    <span>${achievement.name}</span>
-                    <span>${achievement.unlocked ? '✅' : `${totalTaps}/${achievement.requirement}`}</span>
-                </div>
-            `).join('');
-        }
-
-        function updateSkinsGrid() {
-            elements.skinsGrid.innerHTML = Object.entries(skins).map(([id, skin]) => `
-                <div class="skin-item">
-                    <div class="skin-preview" style="background-image: url('${skin.image}')"></div>
-                    <p>${skin.name}</p>
-                    ${!skin.unlocked ? `
-                        <div class="skin-locked">
-                            🔒 ${skin.requirement} тапов
-                        </div>
-                    ` : `
-                        <button onclick="selectSkin('${id}')" 
-                                class="start-button" 
-                                ${currentSkin === id ? 'disabled' : ''}>
-                            ${currentSkin === id ? 'Выбран' : 'Выбрать'}
-                        </button>
-                    `}
-                </div>
-            `).join('');
-        }
-
-        function selectSkin(skinId) {
-            if (skins[skinId] && skins[skinId].unlocked) {
-                currentSkin = skinId;
-                localStorage.setItem('currentSkin', skinId);
-                elements.currentSkinElement.textContent = skins[skinId].name;
-                elements.tapButton.style.backgroundImage = `url('${skins[skinId].image}')`;
-                updateSkinsGrid();
-            }
-        }
-
-        function updateTasksList() {
-            elements.tasksList.innerHTML = tasks.map(task => `
-                <div class="task-item">
-                    <div class="task-info">
-                        <div>${task.name}</div>
-                        <div class="task-reward">+${task.reward} тапов</div>
+            const upgradeCost = calculateUpgradeCost(tapPower);
+            elements.upgradesList.innerHTML = `
+                <div class="upgrade-item">
+                    <div class="upgrade-info">
+                        <div>Сила тапа: ${tapPower}</div>
+                        <div class="upgrade-cost">Стоимость: ${upgradeCost} тапов</div>
                     </div>
-                    <button 
-                        class="task-button" 
-                        onclick="completeTask('${task.id}')"
-                        ${task.completed ? 'disabled' : ''}>
-                        ${task.completed ? '✅' : 'Выполнить'}
+                    <button class="upgrade-button" 
+                            onclick="upgradeTapPower()"
+                            ${totalTaps < upgradeCost ? 'disabled' : ''}>
+                        Улучшить
                     </button>
                 </div>
-            `).join('');
+            `;
         }
 
-        async function completeTask(taskId) {
-            const task = tasks.find(t => t.id === taskId);
-            if (!task || task.completed) return;
-
-            const isSubscribed = await checkSubscription(task.channelUsername);
-            if (!isSubscribed) {
-                tg.showPopup({
-                    title: 'Подписка не найдена',
-                    message: 'Пожалуйста, подпишитесь на канал для получения награды',
-                    buttons: [{
-                        type: 'ok',
-                        text: 'OK'
-                    }]
-                });
-                return;
-            }
-
-            task.completed = true;
-            totalTaps += task.reward;
-            saveToStorage('totalTaps', totalTaps);
-            
-            const completedTasks = getFromStorage('completedTasks', []);
-            completedTasks.push(taskId);
-            saveToStorage('completedTasks', completedTasks);
-
-            safeSetTextContent(elements.totalTapsElement, totalTaps);
-            updateTasksList();
-
-            tg.showPopup({
-                title: 'Задание выполнено!',
-                message: `Получено ${task.reward} тапов`,
-                buttons: [{
-                    type: 'ok',
-                    text: '🎉 Круто!'
-                }]
-            });
-        }
-
-        async function checkSubscription(channelUsername) {
-            try {
-                const result = await tg.sendData(JSON.stringify({
-                    action: 'checkSubscription',
-                    channel: channelUsername
-                }));
-                return result;
-            } catch (e) {
-                console.warn('Error checking subscription:', e);
-                return false;
+        function upgradeTapPower() {
+            const cost = calculateUpgradeCost(tapPower);
+            if (totalTaps >= cost) {
+                totalTaps -= cost;
+                tapPower++;
+                saveToStorage('tapPower', tapPower);
+                saveToStorage('totalTaps', totalTaps);
+                if (elements.tapPowerElement) {
+                    elements.tapPowerElement.textContent = tapPower;
+                }
+                if (elements.totalTapsElement) {
+                    elements.totalTapsElement.textContent = totalTaps;
+                }
+                updateUpgradesList();
             }
         }
 
