@@ -88,13 +88,15 @@
             padding: 10px 20px;
             cursor: pointer;
             border-radius: 10px;
-            transition: all 0.3s ease;
+            transition: transform 0.1s ease-out;
             font-weight: 500;
             position: relative;
             overflow: hidden;
             outline: none;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
+            will-change: transform;
+            font-size: 18px;
         }
 
         .nav-button.active {
@@ -104,7 +106,7 @@
         }
 
         .nav-button:active {
-            transform: translateY(0);
+            transform: scale(0.95);
         }
 
         .section {
@@ -132,7 +134,7 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.1s ease-out;
             user-select: none;
             position: relative;
             overflow: hidden;
@@ -141,6 +143,9 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
             z-index: 1;
+            font-size: 24px;
+            font-weight: bold;
+            will-change: transform;
         }
 
         .tap-button::before {
@@ -270,11 +275,15 @@
             margin: 15px auto;
             display: block;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: transform 0.1s ease-out;
             box-shadow: var(--button-glow);
             font-weight: 600;
             position: relative;
             overflow: hidden;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            will-change: transform;
         }
 
         .start-button::before {
@@ -303,8 +312,7 @@
         }
 
         .start-button:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transform: scale(0.95);
         }
 
         .profile-info {
@@ -1217,6 +1225,28 @@
                 clearInterval(leaderboardUpdateTimer);
             }
         });
+
+        // Функция запуска игры
+        function startGame() {
+            if (gameActive) return;
+            
+            score = 0;
+            gameActive = true;
+            let timeLeft = GAME_DURATION;
+            
+            scoreElement.textContent = score;
+            tapButton.disabled = false;
+            startButton.disabled = true;
+            
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                timerElement.textContent = `Время: ${timeLeft}с`;
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
     </script>
 </body>
 </html> 
