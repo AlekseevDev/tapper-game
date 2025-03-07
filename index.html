@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тапалка</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--tg-theme-bg-color, #fff);
+            color: var(--tg-theme-text-color, #000);
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .tap-button {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: var(--tg-theme-button-color, #2ea6ff);
+            border: none;
+            color: var(--tg-theme-button-text-color, #fff);
+            font-size: 24px;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.1s;
+            user-select: none;
+        }
+        .tap-button:active {
+            transform: scale(0.95);
+        }
+        .score {
+            font-size: 32px;
+            margin: 20px 0;
+            color: var(--tg-theme-text-color, #000);
+        }
+        .timer {
+            font-size: 24px;
+            margin: 10px 0;
+            color: var(--tg-theme-hint-color, #999);
+        }
+        .start-button {
+            background: var(--tg-theme-button-color, #2ea6ff);
+            border: none;
+            color: var(--tg-theme-button-text-color, #fff);
+            padding: 12px 24px;
+            font-size: 18px;
+            border-radius: 8px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        .leaderboard {
+            margin-top: 20px;
+            text-align: left;
+            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--tg-theme-hint-color, #ddd);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="score">Счёт: <span id="score">0</span></div>
+        <div class="timer" id="timer">Время: 30с</div>
+        <button class="tap-button" id="tapButton" disabled>
+            ТАП!
+        </button>
+        <button class="start-button" id="startButton">
+            Начать игру
+        </button>
+        <div class="leaderboard" id="leaderboard">
+            <h3>Таблица лидеров</h3>
+            <div id="leaderboardList"></div>
+        </div>
+    </div>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let score = 0;
+        let timer = 30;
+        let gameInterval;
+        let isGameActive = false;
+
+        const tapButton = document.getElementById('tapButton');
+        const startButton = document.getElementById('startButton');
+        const scoreElement = document.getElementById('score');
+        const timerElement = document.getElementById('timer');
+        const leaderboardList = document.getElementById('leaderboardList');
+
+        startButton.addEventListener('click', startGame);
+        tapButton.addEventListener('click', handleTap);
+
+        function startGame() {
+            score = 0;
+            timer = 30;
+            isGameActive = true;
+            scoreElement.textContent = score;
+            timerElement.textContent = `Время: ${timer}с`;
+            tapButton.disabled = false;
+            startButton.disabled = true;
+
+            gameInterval = setInterval(() => {
+                timer--;
+                timerElement.textContent = `Время: ${timer}с`;
+
+                if (timer <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function handleTap() {
+            if (!isGameActive) return;
+            score++;
+            scoreElement.textContent = score;
+            
+            // Анимация нажатия
+            tapButton.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                tapButton.style.transform = 'scale(1)';
+            }, 100);
+        }
+
+        function endGame() {
+            clearInterval(gameInterval);
+            isGameActive = false;
+            tapButton.disabled = true;
+            startButton.disabled = false;
+
+            // Отправляем результат в бота
+            tg.sendData(JSON.stringify({
+                score: score,
+                action: 'gameEnd'
+            }));
+
+            // Показываем результат
+            tg.showPopup({
+                title: 'Игра окончена!',
+                message: `Ваш результат: ${score} тапов`,
+                buttons: [{
+                    type: 'ok',
+                    text: 'Супер!'
+                }]
+            });
+        }
+
+        // Инициализация
+        tg.ready();
+    </script>
+</body>
+</html> 
