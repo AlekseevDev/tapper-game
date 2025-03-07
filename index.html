@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Тапалка</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -21,6 +21,10 @@
             padding: 0;
             background-color: var(--main-bg-color);
             color: var(--text-color);
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         .container {
@@ -35,33 +39,45 @@
             margin-bottom: 20px;
             background: var(--secondary-bg-color);
             padding: 10px;
-            border-radius: 10px;
+            border-radius: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
         .nav-button {
             background: none;
             border: none;
             color: var(--text-color);
-            padding: 8px 16px;
+            padding: 10px 20px;
             cursor: pointer;
-            border-radius: 5px;
-            transition: background-color 0.3s;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
         }
 
         .nav-button.active {
             background: var(--button-color);
             color: var(--button-text-color);
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .nav-button:active {
+            transform: translateY(0);
         }
 
         .section {
             display: none;
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: all 0.4s ease;
+            transform: translateY(10px);
         }
 
         .section.active {
             display: block;
             opacity: 1;
+            transform: translateY(0);
         }
 
         .tap-button {
@@ -77,39 +93,99 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: transform 0.1s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             user-select: none;
             background-size: cover;
             background-position: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
         }
 
         .tap-button:active {
             transform: scale(0.95);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .tap-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: scale(1);
+            box-shadow: none;
+        }
+
+        .tap-button::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5px;
+            height: 5px;
+            background: rgba(255,255,255,0.8);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .tap-button:active::after {
+            transform: translate(-50%, -50%) scale(40);
+            opacity: 0;
         }
 
         .score {
-            font-size: 32px;
+            font-size: 42px;
             margin: 20px 0;
             text-align: center;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            color: var(--button-color);
         }
 
         .timer {
-            font-size: 24px;
-            margin: 10px 0;
+            font-size: 28px;
+            margin: 15px 0;
             text-align: center;
             color: var(--hint-color);
+            font-weight: 500;
+        }
+
+        .cooldown {
+            font-size: 18px;
+            color: #ff4444;
+            text-align: center;
+            margin: 10px 0;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .cooldown.active {
+            opacity: 1;
         }
 
         .start-button {
             background: var(--button-color);
             border: none;
             color: var(--button-text-color);
-            padding: 12px 24px;
-            font-size: 18px;
-            border-radius: 8px;
-            margin: 10px auto;
+            padding: 15px 30px;
+            font-size: 20px;
+            border-radius: 12px;
+            margin: 15px auto;
             display: block;
             cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            font-weight: 600;
+        }
+
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+        }
+
+        .start-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
         .profile-info {
@@ -212,7 +288,8 @@
 
         <div id="gameSection" class="section active">
             <div class="score">Счёт: <span id="score">0</span></div>
-            <div class="timer" id="timer">Время: 30с</div>
+            <div class="timer" id="timer">Время: 60с</div>
+            <div class="cooldown" id="cooldown"></div>
             <button class="tap-button" id="tapButton" disabled>
                 ТАП!
             </button>
@@ -260,11 +337,111 @@
         let tg = window.Telegram.WebApp;
         tg.expand();
 
-        // Игровые переменные
         let score = 0;
-        let timer = 30;
-        let gameInterval;
-        let isGameActive = false;
+        let gameActive = false;
+        let timer;
+        let cooldownTimer;
+        let cooldownEndTime;
+        
+        const GAME_DURATION = 60; // 1 минута
+        const COOLDOWN_DURATION = 120; // 2 минуты
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // ... existing initialization code ...
+            
+            // Prevent zoom on double tap
+            document.addEventListener('touchstart', function(event) {
+                if (event.touches.length > 1) {
+                    event.preventDefault();
+                }
+            }, { passive: false });
+            
+            let lastTapTime = 0;
+            document.addEventListener('touchend', function(event) {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTapTime;
+                if (tapLength < 500 && tapLength > 0) {
+                    event.preventDefault();
+                }
+                lastTapTime = currentTime;
+            });
+        });
+
+        function startGame() {
+            if (cooldownEndTime && Date.now() < cooldownEndTime) {
+                const remainingCooldown = Math.ceil((cooldownEndTime - Date.now()) / 1000);
+                document.getElementById('cooldown').textContent = `Подождите ${remainingCooldown} секунд`;
+                document.getElementById('cooldown').classList.add('active');
+                return;
+            }
+            
+            score = 0;
+            gameActive = true;
+            let timeLeft = GAME_DURATION;
+            
+            document.getElementById('score').textContent = score;
+            document.getElementById('tapButton').disabled = false;
+            document.getElementById('startButton').disabled = true;
+            document.getElementById('cooldown').classList.remove('active');
+            
+            timer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').textContent = `Время: ${timeLeft}с`;
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(timer);
+            gameActive = false;
+            document.getElementById('tapButton').disabled = true;
+            document.getElementById('startButton').disabled = false;
+            document.getElementById('timer').textContent = `Время: ${GAME_DURATION}с`;
+            
+            // Set cooldown
+            cooldownEndTime = Date.now() + (COOLDOWN_DURATION * 1000);
+            updateCooldownDisplay();
+            
+            // Send score to bot
+            tg.sendData(JSON.stringify({
+                score: score,
+                action: 'gameEnd'
+            }));
+        }
+
+        function updateCooldownDisplay() {
+            if (cooldownEndTime) {
+                const remainingCooldown = Math.ceil((cooldownEndTime - Date.now()) / 1000);
+                if (remainingCooldown > 0) {
+                    document.getElementById('cooldown').textContent = `Подождите ${remainingCooldown} секунд`;
+                    document.getElementById('cooldown').classList.add('active');
+                    setTimeout(updateCooldownDisplay, 1000);
+                } else {
+                    document.getElementById('cooldown').classList.remove('active');
+                    cooldownEndTime = null;
+                }
+            }
+        }
+
+        document.getElementById('tapButton').addEventListener('click', function() {
+            if (gameActive) {
+                score++;
+                document.getElementById('score').textContent = score;
+                
+                // Add tap effect
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 100);
+            }
+        });
+
+        document.getElementById('startButton').addEventListener('click', startGame);
+
+        // Игровые переменные
         let totalTaps = 0;
         let bestScore = 0;
         let currentSkin = 'default';
@@ -337,70 +514,6 @@
                 });
             });
         });
-
-        // Функции игры
-        function startGame() {
-            score = 0;
-            timer = 30;
-            isGameActive = true;
-            elements.scoreElement.textContent = score;
-            elements.timerElement.textContent = `Время: ${timer}с`;
-            elements.tapButton.disabled = false;
-            elements.startButton.disabled = true;
-
-            gameInterval = setInterval(() => {
-                timer--;
-                elements.timerElement.textContent = `Время: ${timer}с`;
-
-                if (timer <= 0) {
-                    endGame();
-                }
-            }, 1000);
-        }
-
-        function handleTap() {
-            if (!isGameActive) return;
-            score++;
-            totalTaps++;
-            elements.scoreElement.textContent = score;
-            elements.totalTapsElement.textContent = totalTaps;
-            
-            checkAchievements();
-            checkSkinUnlocks();
-            
-            elements.tapButton.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-                elements.tapButton.style.transform = 'scale(1)';
-            }, 100);
-        }
-
-        function endGame() {
-            clearInterval(gameInterval);
-            isGameActive = false;
-            elements.tapButton.disabled = true;
-            elements.startButton.disabled = false;
-
-            if (score > bestScore) {
-                bestScore = score;
-                elements.bestScoreElement.textContent = bestScore;
-            }
-
-            tg.sendData(JSON.stringify({
-                action: 'gameEnd',
-                score: score,
-                totalTaps: totalTaps,
-                bestScore: bestScore
-            }));
-
-            tg.showPopup({
-                title: 'Игра окончена!',
-                message: `Ваш результат: ${score} тапов`,
-                buttons: [{
-                    type: 'ok',
-                    text: 'Супер!'
-                }]
-            });
-        }
 
         function checkAchievements() {
             achievements.forEach(achievement => {
