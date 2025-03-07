@@ -1373,7 +1373,7 @@
             const mainColor = themeColors.mainColor;
             const bgColor = themeColors.bgColor;
             
-            // Обновляем CSS переменные для всего интерфейса
+            // Основные CSS переменные
             document.documentElement.style.setProperty('--main-bg-color', bgColor);
             document.documentElement.style.setProperty('--text-color', '#ffffff');
             document.documentElement.style.setProperty('--hint-color', '#9ca3af');
@@ -1381,88 +1381,84 @@
             document.documentElement.style.setProperty('--button-glow', `0 0 15px ${mainColor}80`);
             document.documentElement.style.setProperty('--secondary-bg-color', `${mainColor}1a`);
 
-            // Обновляем фоновый паттерн
+            // Фоновый паттерн
             document.body.style.backgroundImage = `url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' fill='${encodeURIComponent(mainColor + '1a')}' font-size='14'%3E+%3C/text%3E%3C/svg%3E")`;
-            
-            // Обновляем счет и градиенты
-            document.querySelectorAll('.score').forEach(el => {
-                el.style.background = `linear-gradient(45deg, ${mainColor}, ${mainColor}ee)`;
-                el.style.webkitBackgroundClip = 'text';
-                el.style.webkitTextFillColor = 'transparent';
-                el.style.textShadow = `0 0 15px ${mainColor}40`;
-            });
 
-            // Обновляем блоки статистики
-            document.querySelectorAll('.stat-block').forEach(el => {
-                el.style.background = `${mainColor}0a`;
-                el.style.borderColor = `${mainColor}20`;
-                el.style.boxShadow = `0 4px 15px ${mainColor}10`;
-            });
-
-            // Обновляем нижнее меню
-            const navMenu = document.querySelector('.nav-menu');
-            if (navMenu) {
-                navMenu.style.background = `${mainColor}15`;
-                navMenu.style.boxShadow = `0 4px 20px ${mainColor}20`;
-            }
-
-            // Обновляем кнопки навигации
-            document.querySelectorAll('.nav-button').forEach(el => {
-                if (el.classList.contains('active')) {
-                    el.style.background = `linear-gradient(45deg, ${mainColor}, ${mainColor}cc)`;
-                    el.style.boxShadow = `0 0 15px ${mainColor}40`;
-                } else {
-                    el.style.background = 'transparent';
+            // Применяем стили ко всем элементам
+            const elements = {
+                '.score': {
+                    background: `linear-gradient(45deg, ${mainColor}, ${mainColor}ee)`,
+                    webkitBackgroundClip: 'text',
+                    webkitTextFillColor: 'transparent',
+                    textShadow: `0 0 15px ${mainColor}40`
+                },
+                '.stat-block, .settings-section, .profile-info, .upgrade-section, .task-item, .achievement, .leaderboard, .theme-item:not(.locked)': {
+                    background: `${mainColor}0a`,
+                    borderColor: `${mainColor}20`,
+                    boxShadow: `0 4px 15px ${mainColor}10`
+                },
+                '.nav-menu': {
+                    background: `${mainColor}15`,
+                    boxShadow: `0 4px 20px ${mainColor}20`,
+                    backdropFilter: 'blur(10px)'
+                },
+                '.nav-button.active': {
+                    background: `linear-gradient(45deg, ${mainColor}, ${mainColor}cc)`,
+                    boxShadow: `0 0 15px ${mainColor}40`
+                },
+                '.tap-button': {
+                    background: `${mainColor}15`,
+                    borderColor: `${mainColor}30`,
+                    boxShadow: `0 4px 20px ${mainColor}20`
+                },
+                '.tap-button:active': {
+                    background: `${mainColor}25`,
+                    boxShadow: `0 0 30px ${mainColor}40`
+                },
+                '.upgrade-item': {
+                    background: `${mainColor}15`,
+                    borderColor: `${mainColor}30`
+                },
+                '.upgrade-button:not(:disabled)': {
+                    background: `linear-gradient(45deg, ${mainColor}, ${mainColor}cc)`,
+                    boxShadow: `0 0 15px ${mainColor}40`
+                },
+                '.profile-stat': {
+                    borderBottomColor: `${mainColor}20`
+                },
+                '.nickname-input': {
+                    background: `${mainColor}0a`,
+                    borderColor: `${mainColor}20`,
+                    color: '#ffffff'
+                },
+                '.settings-button': {
+                    background: `linear-gradient(45deg, ${mainColor}, ${mainColor}cc)`,
+                    boxShadow: `0 0 15px ${mainColor}40`
+                },
+                '.theme-item.selected': {
+                    borderColor: `${mainColor}60`,
+                    boxShadow: `0 0 20px ${mainColor}40`
+                },
+                '.leaderboard-table th': {
+                    color: mainColor
+                },
+                '.leaderboard-table tr.current-user': {
+                    background: `${mainColor}20`
+                },
+                '.stamina-fill': {
+                    background: `linear-gradient(45deg, ${mainColor}, ${mainColor}cc)`
+                },
+                '.stamina-bar': {
+                    background: `${mainColor}10`,
+                    boxShadow: `inset 0 0 10px ${mainColor}20`
                 }
-            });
+            };
 
-            // Обновляем все секции и блоки
-            document.querySelectorAll('.settings-section, .profile-info, .upgrade-section, .task-item, .achievement, .leaderboard').forEach(el => {
-                el.style.background = `${mainColor}0a`;
-                el.style.borderColor = `${mainColor}20`;
-                el.style.boxShadow = `0 4px 15px ${mainColor}10`;
-            });
-
-            // Обновляем кнопку тапа
-            const tapButton = document.querySelector('.tap-button');
-            if (tapButton) {
-                tapButton.style.background = `${mainColor}15`;
-                tapButton.style.borderColor = `${mainColor}30`;
-                tapButton.style.boxShadow = `0 4px 20px ${mainColor}20`;
-            }
-
-            // Обновляем элементы прокачки
-            document.querySelectorAll('.upgrade-item').forEach(el => {
-                el.style.background = `${mainColor}0a`;
-            });
-
-            // Обновляем элементы тем
-            document.querySelectorAll('.theme-item').forEach(el => {
-                if (!el.classList.contains('locked')) {
-                    el.style.borderColor = `${mainColor}30`;
-                    if (el.classList.contains('selected')) {
-                        el.style.boxShadow = `0 0 15px ${mainColor}40`;
-                    }
-                }
-            });
-
-            // Обновляем разделители в профиле
-            document.querySelectorAll('.profile-stat').forEach(el => {
-                el.style.borderBottomColor = `${mainColor}20`;
-            });
-
-            // Обновляем поле ввода никнейма
-            const nicknameInput = document.querySelector('.nickname-input');
-            if (nicknameInput) {
-                nicknameInput.style.background = `${mainColor}0a`;
-                nicknameInput.style.borderColor = `${mainColor}20`;
-            }
-
-            // Обновляем кнопку настроек
-            const settingsButton = document.querySelector('.settings-button');
-            if (settingsButton) {
-                settingsButton.style.background = `linear-gradient(45deg, ${mainColor}, ${mainColor}cc)`;
-                settingsButton.style.boxShadow = `0 0 15px ${mainColor}40`;
+            // Применяем стили
+            for (const [selector, styles] of Object.entries(elements)) {
+                document.querySelectorAll(selector).forEach(el => {
+                    Object.assign(el.style, styles);
+                });
             }
 
             // Сохраняем выбранную тему
