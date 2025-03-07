@@ -20,7 +20,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Константы
-APP_VERSION = "2.3.7"
+APP_VERSION = "2.4.0"
 
 # Инициализация базы данных
 db = Database('game.db')
@@ -74,18 +74,21 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         if data.get('action') == 'gameEnd':
             # Получаем текущие данные игрока
-            current_player = db.get_player(user_id) or {
-                'total_taps': 0,
-                'best_score': 0,
-                'tap_power': 1,
-                'taps_per_minute': 0,
-                'nickname': 'Игрок',
-                'avatar': 'avatar1'
-            }
+            current_player = db.get_player(user_id)
+            if not current_player:
+                current_player = {
+                    'total_taps': 0,
+                    'best_score': 0,
+                    'tap_power': 1,
+                    'taps_per_minute': 0,
+                    'nickname': 'Игрок',
+                    'avatar': 'avatar1'
+                }
             
             # Обновляем данные игрока
-            new_total_taps = current_player['total_taps'] + data.get('score', 0)
-            new_best_score = max(current_player['best_score'], data.get('score', 0))
+            score = data.get('score', 0)
+            new_total_taps = current_player['total_taps'] + score
+            new_best_score = max(current_player['best_score'], score)
             
             player_data = {
                 'nickname': data.get('nickname', current_player['nickname']),
@@ -93,8 +96,8 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 'total_taps': new_total_taps,
                 'best_score': new_best_score,
                 'tap_power': data.get('tapPower', current_player['tap_power']),
-                'taps_per_minute': data.get('tapsPerMinute', 0),
-                'score': data.get('score', 0)
+                'taps_per_minute': data.get('tapsPerMinute', current_player['taps_per_minute']),
+                'score': score
             }
             
             # Обновляем данные в базе
@@ -103,12 +106,12 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
             # Формируем сообщение с результатами
             message = (
                 f"🎮 Игра завершена!\n"
-                f"📊 Результат: {data['score']} тапов\n"
-                f"⚡ Тапов в минуту: {data['tapsPerMinute']}\n"
+                f"📊 Результат: {score} тапов\n"
+                f"⚡ Тапов в минуту: {player_data['taps_per_minute']}\n"
                 f"🏆 Всего тапов: {new_total_taps}"
             )
             
-            if data['score'] >= new_best_score:
+            if score >= new_best_score:
                 message += "\n🌟 Новый рекорд!"
             
             await update.message.reply_text(message)
@@ -116,17 +119,22 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif data.get('action') == 'getLeaderboard':
             # Получаем данные таблицы лидеров
             leaderboard = db.get_leaderboard()
-            # Добавляем текущего пользователя, если его нет в списке
+            
+            # Получаем текущего игрока
             current_player = db.get_player(user_id)
             if current_player:
+                # Проверяем, есть ли игрок в списке лидеров
                 current_in_list = any(p['user_id'] == user_id for p in leaderboard)
                 if not current_in_list:
+                    # Добавляем игрока в список
                     leaderboard.append({
                         'user_id': user_id,
                         'nickname': current_player['nickname'],
                         'avatar': current_player['avatar'],
-                        'tapsPerMinute': current_player.get('taps_per_minute', 0)
+                        'tapsPerMinute': current_player['taps_per_minute']
                     })
+                    # Сортируем список по убыванию tapsPerMinute
+                    leaderboard.sort(key=lambda x: x['tapsPerMinute'], reverse=True)
             
             await update.message.reply_text(
                 json.dumps({
@@ -145,9 +153,20 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     'data': player
                 }))
             else:
+                # Создаем нового игрока
+                new_player = {
+                    'user_id': user_id,
+                    'nickname': 'Игрок',
+                    'avatar': 'avatar1',
+                    'total_taps': 0,
+                    'best_score': 0,
+                    'tap_power': 1,
+                    'taps_per_minute': 0
+                }
+                db.update_player(user_id, new_player)
                 await update.message.reply_text(json.dumps({
-                    'status': 'error',
-                    'message': 'Player not found'
+                    'status': 'success',
+                    'data': new_player
                 }))
 
         elif data.get('action') == 'checkSubscription':
