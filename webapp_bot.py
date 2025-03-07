@@ -78,7 +78,9 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 'total_taps': 0,
                 'best_score': 0,
                 'tap_power': 1,
-                'taps_per_minute': 0
+                'taps_per_minute': 0,
+                'nickname': 'Игрок',
+                'avatar': 'avatar1'
             }
             
             # Обновляем данные игрока
@@ -86,13 +88,13 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
             new_best_score = max(current_player['best_score'], data.get('score', 0))
             
             player_data = {
-                'nickname': data.get('nickname', 'Игрок'),
-                'avatar': data.get('avatar', 'avatar1'),
+                'nickname': data.get('nickname', current_player['nickname']),
+                'avatar': data.get('avatar', current_player['avatar']),
                 'total_taps': new_total_taps,
                 'best_score': new_best_score,
                 'tap_power': data.get('tapPower', current_player['tap_power']),
                 'taps_per_minute': data.get('tapsPerMinute', 0),
-                'score': data.get('score', 0)  # Добавляем текущий счет для истории
+                'score': data.get('score', 0)
             }
             
             # Обновляем данные в базе
@@ -114,10 +116,39 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif data.get('action') == 'getLeaderboard':
             # Получаем данные таблицы лидеров
             leaderboard = db.get_leaderboard()
+            # Добавляем текущего пользователя, если его нет в списке
+            current_player = db.get_player(user_id)
+            if current_player:
+                current_in_list = any(p['user_id'] == user_id for p in leaderboard)
+                if not current_in_list:
+                    leaderboard.append({
+                        'user_id': user_id,
+                        'nickname': current_player['nickname'],
+                        'avatar': current_player['avatar'],
+                        'tapsPerMinute': current_player.get('taps_per_minute', 0)
+                    })
+            
             await update.message.reply_text(
-                json.dumps({'leaderboard': leaderboard}),
+                json.dumps({
+                    'leaderboard': leaderboard,
+                    'currentUserId': user_id
+                }),
                 disable_web_page_preview=True
             )
+
+        elif data.get('action') == 'loadUserData':
+            # Загружаем данные пользователя
+            player = db.get_player(user_id)
+            if player:
+                await update.message.reply_text(json.dumps({
+                    'status': 'success',
+                    'data': player
+                }))
+            else:
+                await update.message.reply_text(json.dumps({
+                    'status': 'error',
+                    'message': 'Player not found'
+                }))
 
         elif data.get('action') == 'checkSubscription':
             # Проверяем подписку на канал

@@ -1492,8 +1492,11 @@
             initializeDisplay();
             initializeEventListeners();
             initializeAvatars();
-            initializeThemes(); // Добавляем инициализацию тем
+            initializeThemes();
             updateUpgradesList();
+            
+            // Загружаем данные пользователя при старте
+            loadUserData();
             
             // Запуск обновления таблицы лидеров
             updateLeaderboard();
@@ -1504,7 +1507,7 @@
             updateAchievements();
             updateSkinsGrid();
             updateTasksList();
-            loadInterfaceSettings(); // Загружаем настройки интерфейса
+            loadInterfaceSettings();
         });
 
         // Очистка при выходе
@@ -1525,9 +1528,8 @@
                 // Обработчик ответа от бота
                 tg.onEvent('message', function(event) {
                     try {
-                        const data = JSON.parse(event.data);
-                        if (data.leaderboard) {
-                            const currentUserId = tg.initDataUnsafe.user.id;
+                        const response = JSON.parse(event.data);
+                        if (response.leaderboard) {
                             const leaderboardBody = document.getElementById('leaderboardBody');
                             
                             if (leaderboardBody) {
@@ -1535,9 +1537,9 @@
                                 leaderboardBody.innerHTML = '';
                                 
                                 // Добавляем новые данные
-                                data.leaderboard.forEach((player, index) => {
+                                response.leaderboard.forEach((player, index) => {
                                     const row = document.createElement('tr');
-                                    const isCurrentUser = player.user_id === currentUserId;
+                                    const isCurrentUser = player.user_id === response.currentUserId;
                                     
                                     if (isCurrentUser) {
                                         row.classList.add('current-user');
@@ -1564,6 +1566,56 @@
                 });
             } catch (e) {
                 console.warn('Error updating leaderboard:', e);
+            }
+        }
+
+        // Функция загрузки данных пользователя
+        async function loadUserData() {
+            try {
+                tg.sendData(JSON.stringify({
+                    action: 'loadUserData'
+                }));
+
+                tg.onEvent('message', function(event) {
+                    try {
+                        const response = JSON.parse(event.data);
+                        if (response.status === 'success' && response.data) {
+                            const data = response.data;
+                            
+                            // Обновляем данные в localStorage
+                            saveToStorage('totalTaps', data.total_taps);
+                            saveToStorage('bestScore', data.best_score);
+                            saveToStorage('tapPower', data.tap_power);
+                            saveToStorage('nickname', data.nickname);
+                            saveToStorage('selectedAvatar', data.avatar);
+                            
+                            // Обновляем отображение
+                            totalTaps = data.total_taps;
+                            bestScore = data.best_score;
+                            tapPower = data.tap_power;
+                            nickname = data.nickname;
+                            selectedAvatar = data.avatar;
+                            
+                            // Обновляем элементы интерфейса
+                            safeSetTextContent(elements.totalTapsElement, totalTaps);
+                            safeSetTextContent(elements.bestScoreElement, bestScore);
+                            safeSetTextContent(elements.tapPowerElement, tapPower);
+                            safeSetTextContent(elements.profileNicknameElement, nickname);
+                            safeSetTextContent(elements.totalTapsBalanceElement, totalTaps);
+                            
+                            if (elements.nicknameInput) {
+                                elements.nicknameInput.value = nickname;
+                            }
+                            
+                            // Обновляем выбранный аватар
+                            updateAvatarSelection();
+                        }
+                    } catch (e) {
+                        console.warn('Error parsing user data:', e);
+                    }
+                });
+            } catch (e) {
+                console.warn('Error loading user data:', e);
             }
         }
     </script>
