@@ -8,19 +8,88 @@ logger = logging.getLogger(__name__)
 class Database:
     def __init__(self, db_file):
         self.db_file = db_file
-        self.init_db()
-        logger.info(f"Database initialized: {db_file}")
+        # Проверяем, существует ли файл базы данных
+        db_exists = os.path.exists(db_file)
+        
+        # Создаем директорию для базы данных, если её нет
+        os.makedirs(os.path.dirname(os.path.abspath(db_file)), exist_ok=True)
+        
+        # Инициализируем базу данных только если она не существует
+        if not db_exists:
+            self.init_db()
+            logger.info(f"Created new database: {db_file}")
+        else:
+            logger.info(f"Using existing database: {db_file}")
+            # Проверяем структуру существующей базы данных
+            self.check_db_structure()
+
+    def check_db_structure(self):
+        """Проверка структуры базы данных"""
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+
+        try:
+            # Проверяем наличие всех необходимых таблиц
+            tables = {
+                'players': '''CREATE TABLE IF NOT EXISTS players
+                            (user_id INTEGER PRIMARY KEY,
+                             nickname TEXT NOT NULL DEFAULT 'Игрок',
+                             avatar TEXT NOT NULL DEFAULT 'avatar1',
+                             total_taps INTEGER NOT NULL DEFAULT 0,
+                             best_score INTEGER NOT NULL DEFAULT 0,
+                             tap_power INTEGER NOT NULL DEFAULT 1,
+                             taps_per_minute INTEGER NOT NULL DEFAULT 0,
+                             last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)''',
+                             
+                'score_history': '''CREATE TABLE IF NOT EXISTS score_history
+                                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                   user_id INTEGER NOT NULL,
+                                   score INTEGER NOT NULL,
+                                   timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                   FOREIGN KEY(user_id) REFERENCES players(user_id) ON DELETE CASCADE)''',
+                                   
+                'completed_tasks': '''CREATE TABLE IF NOT EXISTS completed_tasks
+                                    (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                     user_id INTEGER NOT NULL,
+                                     task_id TEXT NOT NULL,
+                                     completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                     FOREIGN KEY(user_id) REFERENCES players(user_id) ON DELETE CASCADE)'''
+            }
+
+            # Создаем отсутствующие таблицы
+            for table_name, create_sql in tables.items():
+                c.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+                if not c.fetchone():
+                    logger.info(f"Creating missing table: {table_name}")
+                    c.execute(create_sql)
+
+            # Создаем индексы
+            c.execute('''CREATE INDEX IF NOT EXISTS idx_taps_per_minute 
+                        ON players(taps_per_minute DESC)''')
+            c.execute('''CREATE UNIQUE INDEX IF NOT EXISTS idx_user_task 
+                        ON completed_tasks(user_id, task_id)''')
+
+            conn.commit()
+            logger.info("Database structure check completed")
+
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error checking database structure: {e}")
+            raise e
+
+        finally:
+            conn.close()
 
     def init_db(self):
-        """Инициализация базы данных"""
+        """Инициализация новой базы данных"""
         conn = sqlite3.connect(self.db_file)
         c = conn.cursor()
 
         try:
             c.execute('BEGIN TRANSACTION')
 
-            # Создаем таблицу игроков с обязательными полями
-            c.execute('''CREATE TABLE IF NOT EXISTS players
+            # Создаем таблицу игроков
+            c.execute('''CREATE TABLE players
                         (user_id INTEGER PRIMARY KEY,
                          nickname TEXT NOT NULL DEFAULT 'Игрок',
                          avatar TEXT NOT NULL DEFAULT 'avatar1',
@@ -31,11 +100,11 @@ class Database:
                          last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)''')
 
             # Создаем индекс для быстрой сортировки
-            c.execute('''CREATE INDEX IF NOT EXISTS idx_taps_per_minute 
+            c.execute('''CREATE INDEX idx_taps_per_minute 
                         ON players(taps_per_minute DESC)''')
 
             # Создаем таблицу истории результатов
-            c.execute('''CREATE TABLE IF NOT EXISTS score_history
+            c.execute('''CREATE TABLE score_history
                         (id INTEGER PRIMARY KEY AUTOINCREMENT,
                          user_id INTEGER NOT NULL,
                          score INTEGER NOT NULL,
@@ -43,7 +112,7 @@ class Database:
                          FOREIGN KEY(user_id) REFERENCES players(user_id) ON DELETE CASCADE)''')
 
             # Создаем таблицу выполненных заданий
-            c.execute('''CREATE TABLE IF NOT EXISTS completed_tasks
+            c.execute('''CREATE TABLE completed_tasks
                         (id INTEGER PRIMARY KEY AUTOINCREMENT,
                          user_id INTEGER NOT NULL,
                          task_id TEXT NOT NULL,
@@ -51,7 +120,7 @@ class Database:
                          FOREIGN KEY(user_id) REFERENCES players(user_id) ON DELETE CASCADE)''')
 
             # Создаем уникальный индекс для предотвращения дублирования заданий
-            c.execute('''CREATE UNIQUE INDEX IF NOT EXISTS idx_user_task 
+            c.execute('''CREATE UNIQUE INDEX idx_user_task 
                         ON completed_tasks(user_id, task_id)''')
 
             conn.commit()
