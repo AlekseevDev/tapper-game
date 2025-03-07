@@ -1374,12 +1374,13 @@
             const bgColor = themeColors.bgColor;
             
             // Основные CSS переменные
-            document.documentElement.style.setProperty('--main-bg-color', bgColor);
-            document.documentElement.style.setProperty('--text-color', '#ffffff');
-            document.documentElement.style.setProperty('--hint-color', '#9ca3af');
-            document.documentElement.style.setProperty('--button-gradient', `linear-gradient(45deg, ${mainColor}, ${mainColor}cc)`);
-            document.documentElement.style.setProperty('--button-glow', `0 0 15px ${mainColor}80`);
-            document.documentElement.style.setProperty('--secondary-bg-color', `${mainColor}1a`);
+            const root = document.documentElement;
+            root.style.setProperty('--main-bg-color', bgColor);
+            root.style.setProperty('--text-color', '#ffffff');
+            root.style.setProperty('--hint-color', '#9ca3af');
+            root.style.setProperty('--button-gradient', `linear-gradient(45deg, ${mainColor}, ${mainColor}cc)`);
+            root.style.setProperty('--button-glow', `0 0 15px ${mainColor}80`);
+            root.style.setProperty('--secondary-bg-color', `${mainColor}1a`);
 
             // Фоновый паттерн
             document.body.style.backgroundImage = `url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' fill='${encodeURIComponent(mainColor + '1a')}' font-size='14'%3E+%3C/text%3E%3C/svg%3E")`;
@@ -1411,6 +1412,9 @@
                     borderColor: `${mainColor}30`,
                     boxShadow: `0 4px 20px ${mainColor}20`
                 },
+                '.tap-button::before': {
+                    background: `linear-gradient(45deg, ${mainColor}10, ${mainColor}20)`
+                },
                 '.tap-button:active': {
                     background: `${mainColor}25`,
                     boxShadow: `0 0 30px ${mainColor}40`
@@ -1422,6 +1426,9 @@
                 '.upgrade-button:not(:disabled)': {
                     background: `linear-gradient(45deg, ${mainColor}, ${mainColor}cc)`,
                     boxShadow: `0 0 15px ${mainColor}40`
+                },
+                '.upgrade-cost': {
+                    color: mainColor
                 },
                 '.profile-stat': {
                     borderBottomColor: `${mainColor}20`
@@ -1460,6 +1467,21 @@
                     Object.assign(el.style, styles);
                 });
             }
+
+            // Обновляем стили псевдоэлементов через CSS
+            const styleSheet = document.createElement('style');
+            styleSheet.textContent = `
+                .tap-button::before {
+                    background: linear-gradient(45deg, ${mainColor}10, ${mainColor}20) !important;
+                }
+                .upgrade-item {
+                    background: ${mainColor}15 !important;
+                }
+                .upgrade-cost {
+                    color: ${mainColor} !important;
+                }
+            `;
+            document.head.appendChild(styleSheet);
 
             // Сохраняем выбранную тему
             saveToStorage('selectedTheme', theme);
