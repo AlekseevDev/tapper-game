@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Константы
-APP_VERSION = "2.6.0"
+APP_VERSION = "2.7.0"
 
 # Инициализация базы данных
 db = Database('game.db')
@@ -82,19 +82,26 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
             current_player = db.get_player(user_id)
             logger.info(f"Current player data: {current_player}")
             
-            # Обновляем данные игрока
-            score = int(data.get('score', 0))
-            new_total_taps = current_player['total_taps'] + score
-            new_best_score = max(current_player['best_score'], score)
-            taps_per_minute = int(data.get('tapsPerMinute', 0))
+            # Преобразуем и проверяем все числовые значения
+            try:
+                score = max(0, int(data.get('score', 0)))
+                current_total_taps = max(0, int(current_player.get('total_taps', 0)))
+                current_best_score = max(0, int(current_player.get('best_score', 0)))
+                new_total_taps = current_total_taps + score
+                new_best_score = max(current_best_score, score)
+                taps_per_minute = max(0, int(data.get('tapsPerMinute', 0)))
+                tap_power = max(1, int(data.get('tapPower', current_player.get('tap_power', 1))))
+            except (ValueError, TypeError) as e:
+                logger.error(f"Error converting numeric values: {e}")
+                raise ValueError("Invalid numeric values in game data")
             
             player_data = {
-                'nickname': data.get('nickname', current_player['nickname']),
-                'avatar': data.get('avatar', current_player['avatar']),
+                'nickname': str(data.get('nickname', current_player['nickname'])),
+                'avatar': str(data.get('avatar', current_player['avatar'])),
                 'total_taps': new_total_taps,
                 'best_score': new_best_score,
-                'tap_power': int(data.get('tapPower', current_player['tap_power'])),
-                'taps_per_minute': max(current_player['taps_per_minute'], taps_per_minute),
+                'tap_power': tap_power,
+                'taps_per_minute': max(current_player.get('taps_per_minute', 0), taps_per_minute),
                 'score': score
             }
             
@@ -125,21 +132,32 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             # Проверяем, есть ли игрок в списке лидеров
             current_in_list = any(p['user_id'] == user_id for p in leaderboard)
-            if not current_in_list and current_player['taps_per_minute'] > 0:
+            
+            # Убеждаемся, что все числовые значения корректны
+            current_taps_per_minute = max(0, int(current_player.get('taps_per_minute', 0)))
+            current_total_taps = max(0, int(current_player.get('total_taps', 0)))
+            
+            if not current_in_list and current_taps_per_minute > 0:
                 # Добавляем игрока в список
                 leaderboard.append({
                     'user_id': user_id,
-                    'nickname': current_player['nickname'],
-                    'avatar': current_player['avatar'],
-                    'tapsPerMinute': current_player['taps_per_minute'],
-                    'totalTaps': current_player['total_taps']
+                    'nickname': str(current_player['nickname']),
+                    'avatar': str(current_player['avatar']),
+                    'tapsPerMinute': current_taps_per_minute,
+                    'totalTaps': current_total_taps
                 })
-                # Сортируем список по убыванию tapsPerMinute и totalTaps
+                
+                # Преобразуем все значения в числа перед сортировкой
+                for entry in leaderboard:
+                    entry['tapsPerMinute'] = max(0, int(entry.get('tapsPerMinute', 0)))
+                    entry['totalTaps'] = max(0, int(entry.get('totalTaps', 0)))
+                
+                # Сортируем список
                 leaderboard.sort(key=lambda x: (x['tapsPerMinute'], x['totalTaps']), reverse=True)
                 logger.info(f"Added current player to leaderboard: {current_player}")
             
             response_data = {
-                'leaderboard': leaderboard[:500],  # Ограничиваем список 500 игроками
+                'leaderboard': leaderboard[:500],
                 'currentUserId': user_id
             }
             logger.info(f"Sending leaderboard response with {len(response_data['leaderboard'])} entries")
@@ -152,6 +170,17 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif data.get('action') == 'loadUserData':
             # Загружаем данные пользователя
             player = db.get_player(user_id)
+            
+            # Проверяем и конвертируем все числовые значения
+            try:
+                player['total_taps'] = max(0, int(player.get('total_taps', 0)))
+                player['best_score'] = max(0, int(player.get('best_score', 0)))
+                player['tap_power'] = max(1, int(player.get('tap_power', 1)))
+                player['taps_per_minute'] = max(0, int(player.get('taps_per_minute', 0)))
+            except (ValueError, TypeError) as e:
+                logger.error(f"Error converting player data: {e}")
+                raise ValueError("Invalid numeric values in player data")
+                
             logger.info(f"Loading user data for {user_id}: {player}")
             
             response_data = {

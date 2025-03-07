@@ -75,22 +75,23 @@ class Database:
             player = c.fetchone()
 
             if player:
+                # Убеждаемся, что все числовые значения корректны
                 player_data = {
-                    'user_id': player[0],
-                    'nickname': player[1],
-                    'avatar': player[2],
-                    'total_taps': player[3],
-                    'best_score': player[4],
-                    'tap_power': player[5],
-                    'taps_per_minute': player[6],
-                    'last_updated': player[7]
+                    'user_id': int(player[0]),
+                    'nickname': str(player[1]),
+                    'avatar': str(player[2]),
+                    'total_taps': max(0, int(player[3])),
+                    'best_score': max(0, int(player[4])),
+                    'tap_power': max(1, int(player[5])),
+                    'taps_per_minute': max(0, int(player[6])),
+                    'last_updated': str(player[7])
                 }
                 logger.info(f"Retrieved player data: {player_data}")
                 return player_data
 
             # Если игрок не найден, создаем нового
             new_player = {
-                'user_id': user_id,
+                'user_id': int(user_id),
                 'nickname': 'Игрок',
                 'avatar': 'avatar1',
                 'total_taps': 0,
@@ -121,17 +122,22 @@ class Database:
             c.execute('SELECT * FROM players WHERE user_id = ?', (user_id,))
             current_player = c.fetchone()
 
-            if current_player:
-                # Обновляем существующего игрока, сохраняя текущие значения если новые не предоставлены
+            # Преобразуем все числовые значения
+            try:
                 update_data = {
-                    'nickname': data.get('nickname', current_player[1]),
-                    'avatar': data.get('avatar', current_player[2]),
-                    'total_taps': data.get('total_taps', current_player[3]),
-                    'best_score': data.get('best_score', current_player[4]),
-                    'tap_power': data.get('tap_power', current_player[5]),
-                    'taps_per_minute': data.get('taps_per_minute', current_player[6])
+                    'nickname': str(data.get('nickname', current_player[1] if current_player else 'Игрок')),
+                    'avatar': str(data.get('avatar', current_player[2] if current_player else 'avatar1')),
+                    'total_taps': max(0, int(data.get('total_taps', current_player[3] if current_player else 0))),
+                    'best_score': max(0, int(data.get('best_score', current_player[4] if current_player else 0))),
+                    'tap_power': max(1, int(data.get('tap_power', current_player[5] if current_player else 1))),
+                    'taps_per_minute': max(0, int(data.get('taps_per_minute', current_player[6] if current_player else 0)))
                 }
-                
+            except (ValueError, TypeError) as e:
+                logger.error(f"Error converting player data values: {e}")
+                raise ValueError("Invalid numeric values in player data")
+
+            if current_player:
+                # Обновляем существующего игрока
                 c.execute('''UPDATE players SET 
                             nickname = ?,
                             avatar = ?,
@@ -155,18 +161,18 @@ class Database:
                             (user_id, nickname, avatar, total_taps, best_score, tap_power, taps_per_minute)
                             VALUES (?, ?, ?, ?, ?, ?, ?)''',
                          (user_id,
-                          data.get('nickname', 'Игрок'),
-                          data.get('avatar', 'avatar1'),
-                          data.get('total_taps', 0),
-                          data.get('best_score', 0),
-                          data.get('tap_power', 1),
-                          data.get('taps_per_minute', 0)))
-                logger.info(f"Created new player: {data}")
+                          update_data['nickname'],
+                          update_data['avatar'],
+                          update_data['total_taps'],
+                          update_data['best_score'],
+                          update_data['tap_power'],
+                          update_data['taps_per_minute']))
+                logger.info(f"Created new player: {update_data}")
 
             # Записываем историю счета
-            if 'score' in data and data['score'] > 0:
+            if 'score' in data and int(data['score']) > 0:
                 c.execute('''INSERT INTO score_history (user_id, score)
-                            VALUES (?, ?)''', (user_id, data['score']))
+                            VALUES (?, ?)''', (user_id, int(data['score'])))
                 logger.info(f"Recorded score: {data['score']} for user {user_id}")
 
             conn.commit()
@@ -191,13 +197,22 @@ class Database:
                         ORDER BY taps_per_minute DESC, total_taps DESC
                         LIMIT ?''', (limit,))
             
-            leaderboard = [{
-                'user_id': row[0],
-                'nickname': row[1],
-                'avatar': row[2],
-                'tapsPerMinute': row[3],
-                'totalTaps': row[4]
-            } for row in c.fetchall()]
+            rows = c.fetchall()
+            leaderboard = []
+            
+            for row in rows:
+                try:
+                    entry = {
+                        'user_id': int(row[0]),
+                        'nickname': str(row[1]),
+                        'avatar': str(row[2]),
+                        'tapsPerMinute': max(0, int(row[3])),
+                        'totalTaps': max(0, int(row[4]))
+                    }
+                    leaderboard.append(entry)
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Error converting leaderboard entry: {e}")
+                    continue
             
             logger.info(f"Retrieved leaderboard with {len(leaderboard)} entries")
             return leaderboard
