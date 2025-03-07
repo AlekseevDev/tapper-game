@@ -42,37 +42,52 @@ class Database:
         conn = sqlite3.connect(self.db_file)
         c = conn.cursor()
 
-        # Создаем таблицу игроков с индексом по taps_per_minute
-        c.execute('''CREATE TABLE IF NOT EXISTS players
-                    (user_id INTEGER PRIMARY KEY,
-                     nickname TEXT,
-                     avatar TEXT,
-                     total_taps INTEGER DEFAULT 0,
-                     best_score INTEGER DEFAULT 0,
-                     tap_power INTEGER DEFAULT 1,
-                     taps_per_minute INTEGER DEFAULT 0,
-                     last_updated TIMESTAMP)''')
+        try:
+            # Начинаем транзакцию
+            c.execute('BEGIN TRANSACTION')
 
-        # Создаем индекс для быстрой сортировки по taps_per_minute
-        c.execute('''CREATE INDEX IF NOT EXISTS idx_taps_per_minute 
-                    ON players(taps_per_minute DESC)''')
+            # Удаляем старую таблицу players если она существует
+            c.execute('DROP TABLE IF EXISTS players')
 
-        # Создаем таблицу истории результатов
-        c.execute('''CREATE TABLE IF NOT EXISTS score_history
-                    (user_id INTEGER,
-                     score INTEGER,
-                     timestamp TIMESTAMP,
-                     FOREIGN KEY(user_id) REFERENCES players(user_id))''')
+            # Создаем таблицу игроков с нужными полями
+            c.execute('''CREATE TABLE IF NOT EXISTS players
+                        (user_id INTEGER PRIMARY KEY,
+                         nickname TEXT,
+                         avatar TEXT,
+                         total_taps INTEGER DEFAULT 0,
+                         best_score INTEGER DEFAULT 0,
+                         tap_power INTEGER DEFAULT 1,
+                         taps_per_minute INTEGER DEFAULT 0,
+                         last_updated TIMESTAMP)''')
 
-        # Создаем таблицу выполненных заданий
-        c.execute('''CREATE TABLE IF NOT EXISTS completed_tasks
-                    (user_id INTEGER,
-                     task_id TEXT,
-                     completed_at TIMESTAMP,
-                     FOREIGN KEY(user_id) REFERENCES players(user_id))''')
+            # Создаем индекс после создания таблицы
+            c.execute('''CREATE INDEX IF NOT EXISTS idx_taps_per_minute 
+                        ON players(taps_per_minute DESC)''')
 
-        conn.commit()
-        conn.close()
+            # Создаем таблицу истории результатов
+            c.execute('''CREATE TABLE IF NOT EXISTS score_history
+                        (user_id INTEGER,
+                         score INTEGER,
+                         timestamp TIMESTAMP,
+                         FOREIGN KEY(user_id) REFERENCES players(user_id))''')
+
+            # Создаем таблицу выполненных заданий
+            c.execute('''CREATE TABLE IF NOT EXISTS completed_tasks
+                        (user_id INTEGER,
+                         task_id TEXT,
+                         completed_at TIMESTAMP,
+                         FOREIGN KEY(user_id) REFERENCES players(user_id))''')
+
+            # Завершаем транзакцию
+            conn.commit()
+
+        except Exception as e:
+            # В случае ошибки откатываем изменения
+            conn.rollback()
+            raise e
+
+        finally:
+            conn.close()
 
     def update_player(self, user_id, data):
         """Обновление данных игрока"""
