@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from dotenv import load_dotenv
 
@@ -17,7 +17,7 @@ logging.basicConfig(
 # Константы
 BOT_TOKEN = "7480394291:AAFm2nXc685V7MR5ZiuXklk3LpXz8YtkqwA"
 WEBAPP_URL = "https://alekseevdev.github.io/tapper-game/"
-APP_VERSION = "2.0.0"  # Версия приложения
+APP_VERSION = "2.1.0"  # Обновленная версия приложения
 
 # Хранение данных пользователей
 user_data = {}
@@ -107,6 +107,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
+async def check_subscription(bot, user_id, channel_username):
+    """Проверка подписки пользователя на канал"""
+    try:
+        chat_member = await bot.get_chat_member(chat_id=channel_username, user_id=user_id)
+        return chat_member.status in ['member', 'administrator', 'creator']
+    except Exception as e:
+        logging.error(f"Error checking subscription: {e}")
+        return False
+
 async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик данных от веб-приложения"""
     try:
@@ -158,7 +167,7 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
             keyboard = [[
                 InlineKeyboardButton(
                     "🎮 Играть снова",
-                    web_app=WebAppInfo(url=f"{WEBAPP_URL}?v={APP_VERSION}")
+                    web_app=WebAppInfo(url=WEBAPP_URL)
                 )
             ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -167,6 +176,13 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 message,
                 reply_markup=reply_markup
             )
+        elif data['action'] == 'checkSubscription':
+            channel = data.get('channel')
+            if channel:
+                is_subscribed = await check_subscription(context.bot, user_id, channel)
+                await update.effective_message.reply_text(
+                    json.dumps({'subscribed': is_subscribed})
+                )
             
     except Exception as e:
         logging.error(f"Ошибка при обработке данных веб-приложения: {e}")

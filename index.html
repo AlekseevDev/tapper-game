@@ -34,16 +34,21 @@
             max-width: 500px;
             margin: 0 auto;
             padding: 20px;
+            padding-bottom: 80px; /* Для нижнего меню */
         }
 
         .nav-menu {
             display: flex;
             justify-content: space-around;
-            margin-bottom: 20px;
             background: var(--secondary-bg-color);
             padding: 10px;
             border-radius: 15px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
         }
 
         .nav-button {
@@ -153,17 +158,67 @@
             font-weight: 500;
         }
 
-        .cooldown {
-            font-size: 18px;
-            color: #ff4444;
-            text-align: center;
+        .stamina-bar {
+            width: 100%;
+            height: 20px;
+            background: var(--secondary-bg-color);
+            border-radius: 10px;
+            overflow: hidden;
             margin: 10px 0;
-            opacity: 0;
-            transition: opacity 0.3s ease;
         }
 
-        .cooldown.active {
-            opacity: 1;
+        .stamina-fill {
+            height: 100%;
+            background: var(--button-color);
+            transition: width 0.3s ease;
+        }
+
+        .stamina-text {
+            text-align: center;
+            color: var(--hint-color);
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .tasks-section {
+            margin-top: 20px;
+        }
+
+        .task-item {
+            background: var(--secondary-bg-color);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .task-info {
+            flex: 1;
+        }
+
+        .task-reward {
+            background: var(--button-color);
+            color: var(--button-text-color);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .task-button {
+            background: var(--button-color);
+            color: var(--button-text-color);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .task-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .start-button {
@@ -282,17 +337,13 @@
 </head>
 <body>
     <div class="container">
-        <div class="nav-menu">
-            <button class="nav-button active" data-section="game">🎮 Игра</button>
-            <button class="nav-button" data-section="profile">👤 Профиль</button>
-            <button class="nav-button" data-section="shop">🎨 Скины</button>
-            <button class="nav-button" data-section="leaderboard">🏆 Лидеры</button>
-        </div>
-
         <div id="gameSection" class="section active">
             <div class="score">Счёт: <span id="score">0</span></div>
             <div class="timer" id="timer">Время: 60с</div>
-            <div class="cooldown" id="cooldown"></div>
+            <div class="stamina-bar">
+                <div id="staminaFill" class="stamina-fill" style="width: 100%"></div>
+            </div>
+            <div id="staminaText" class="stamina-text">Стамина: 1000/1000</div>
             <button class="tap-button" id="tapButton" disabled>
                 ТАП!
             </button>
@@ -328,33 +379,40 @@
             <div class="skins-grid" id="skinsGrid"></div>
         </div>
 
-        <div id="leaderboardSection" class="section">
-            <div class="leaderboard">
-                <h3>Таблица лидеров</h3>
-                <div id="leaderboardList"></div>
-            </div>
+        <div id="tasksSection" class="section">
+            <h3>Задания</h3>
+            <div id="tasksList" class="tasks-section"></div>
+        </div>
+
+        <div class="nav-menu">
+            <button class="nav-button active" data-section="game">🎮</button>
+            <button class="nav-button" data-section="profile">👤</button>
+            <button class="nav-button" data-section="shop">🎨</button>
+            <button class="nav-button" data-section="tasks">📋</button>
         </div>
     </div>
 
     <script>
         // Версия приложения
-        const APP_VERSION = '2.0.0';
+        const APP_VERSION = '2.1.0';
         
         // Проверка версии и очистка кэша при необходимости
         function checkVersion() {
             const urlParams = new URLSearchParams(window.location.search);
             const serverVersion = urlParams.get('v');
+            const timestamp = urlParams.get('t');
             
-            if (serverVersion && serverVersion !== localStorage.getItem('appVersion')) {
-                // Очищаем весь localStorage при обновлении версии
-                localStorage.clear();
-                localStorage.setItem('appVersion', serverVersion);
-                
-                // Перезагружаем страницу без параметров версии
-                if (window.location.search) {
-                    window.location.href = window.location.pathname;
-                }
+            // Всегда очищаем кэш при загрузке
+            localStorage.clear();
+            
+            if (!timestamp || Date.now() - parseInt(timestamp) > 3600000) {
+                // Если прошло больше часа или timestamp отсутствует, перезагружаем страницу
+                const newUrl = `${window.location.pathname}?v=${APP_VERSION}&t=${Date.now()}`;
+                window.location.href = newUrl;
+                return;
             }
+            
+            localStorage.setItem('appVersion', APP_VERSION);
         }
 
         // Дожидаемся загрузки Telegram WebApp
@@ -385,18 +443,23 @@
             }
         }
 
-        // Игровые переменные с сохранением в localStorage
+        // Константы
+        const STAMINA_MAX = 1000;
+        const STAMINA_REGEN_TIME = 120; // 2 минуты
+        const STAMINA_REGEN_RATE = STAMINA_MAX / STAMINA_REGEN_TIME;
+
+        // Игровые переменные
         let score = 0;
         let gameActive = false;
         let timer;
-        let cooldownTimer;
-        let cooldownEndTime = getFromStorage('cooldownEndTime', 0);
+        let stamina = getFromStorage('stamina', STAMINA_MAX);
+        let staminaRegenTimeout;
+        let lastStaminaUpdate = getFromStorage('lastStaminaUpdate', Date.now());
         let totalTaps = getFromStorage('totalTaps', 0);
         let bestScore = getFromStorage('bestScore', 0);
         let currentSkin = getFromStorage('currentSkin', 'default');
         
         const GAME_DURATION = 60;
-        const COOLDOWN_DURATION = 120;
         
         // Скины и их условия разблокировки
         const skins = {
@@ -434,6 +497,30 @@
             }
         });
 
+        // Задания
+        const tasks = [
+            {
+                id: 'channel1',
+                name: 'Подписаться на канал разработчика',
+                reward: 500,
+                channelUsername: '@alekseevdev',
+                completed: false
+            },
+            {
+                id: 'channel2',
+                name: 'Подписаться на канал DophCrypto',
+                reward: 100000,
+                channelUsername: '@dophcrypto',
+                completed: false
+            }
+        ];
+
+        // Загрузка состояния заданий
+        const completedTasks = getFromStorage('completedTasks', []);
+        tasks.forEach(task => {
+            task.completed = completedTasks.includes(task.id);
+        });
+
         // Достижения
         const achievements = [
             { id: 'first100', name: '100 тапов', requirement: 100, unlocked: false },
@@ -462,7 +549,9 @@
             achievementsList: document.getElementById('achievementsList'),
             skinsGrid: document.getElementById('skinsGrid'),
             leaderboardList: document.getElementById('leaderboardList'),
-            cooldownElement: document.getElementById('cooldown')
+            staminaFill: document.getElementById('staminaFill'),
+            staminaText: document.getElementById('staminaText'),
+            tasksList: document.getElementById('tasksList')
         };
 
         // Функция для безопасного обновления текстового содержимого
@@ -480,42 +569,57 @@
             if (elements.tapButton && skins[currentSkin]) {
                 elements.tapButton.style.backgroundImage = `url('${skins[currentSkin].image}')`;
             }
-            updateCooldownDisplay();
+            updateStamina();
         }
 
-        // Обработчик тапа с debounce
-        let tapTimeout = null;
+        function updateStamina() {
+            const now = Date.now();
+            const timePassed = (now - lastStaminaUpdate) / 1000;
+            lastStaminaUpdate = now;
+
+            if (stamina < STAMINA_MAX) {
+                stamina = Math.min(STAMINA_MAX, stamina + (timePassed * STAMINA_REGEN_RATE));
+                saveToStorage('stamina', stamina);
+                saveToStorage('lastStaminaUpdate', lastStaminaUpdate);
+            }
+
+            const staminaPercent = (stamina / STAMINA_MAX) * 100;
+            elements.staminaFill.style.width = `${staminaPercent}%`;
+            elements.staminaText.textContent = 
+                `Стамина: ${Math.floor(stamina)}/${STAMINA_MAX}`;
+
+            if (gameActive && stamina <= 0) {
+                endGame();
+            }
+        }
+
+        function startStaminaRegen() {
+            clearTimeout(staminaRegenTimeout);
+            staminaRegenTimeout = setInterval(updateStamina, 1000);
+        }
+
         function handleTap(event) {
             if (event) {
                 event.preventDefault();
             }
-            if (!gameActive || tapTimeout) return;
-
-            tapTimeout = setTimeout(() => {
-                tapTimeout = null;
-            }, 50); // Защита от слишком частых тапов
+            if (!gameActive || stamina <= 0) return;
 
             score++;
             totalTaps++;
+            stamina--;
             
-            // Сохранение прогресса
             saveToStorage('totalTaps', totalTaps);
+            saveToStorage('stamina', stamina);
             
             safeSetTextContent(elements.scoreElement, score);
             safeSetTextContent(elements.totalTapsElement, totalTaps);
+            updateStamina();
             
             checkAchievements();
             checkSkinUnlocks();
         }
 
         function startGame() {
-            if (cooldownEndTime && Date.now() < cooldownEndTime) {
-                const remainingCooldown = Math.ceil((cooldownEndTime - Date.now()) / 1000);
-                safeSetTextContent(elements.cooldownElement, `Подождите ${remainingCooldown} секунд`);
-                elements.cooldownElement.classList.add('active');
-                return;
-            }
-            
             score = 0;
             gameActive = true;
             let timeLeft = GAME_DURATION;
@@ -527,7 +631,6 @@
             if (elements.startButton) {
                 elements.startButton.disabled = true;
             }
-            elements.cooldownElement.classList.remove('active');
             
             timer = setInterval(() => {
                 timeLeft--;
@@ -558,9 +661,10 @@
                 safeSetTextContent(elements.bestScoreElement, bestScore);
             }
             
-            cooldownEndTime = Date.now() + (COOLDOWN_DURATION * 1000);
-            saveToStorage('cooldownEndTime', cooldownEndTime);
-            updateCooldownDisplay();
+            stamina = STAMINA_MAX;
+            saveToStorage('stamina', stamina);
+            saveToStorage('lastStaminaUpdate', Date.now());
+            updateStamina();
             
             try {
                 tg.sendData(JSON.stringify({
@@ -571,19 +675,6 @@
                 }));
             } catch (e) {
                 console.warn('Error sending data to Telegram:', e);
-            }
-        }
-
-        function updateCooldownDisplay() {
-            if (cooldownEndTime && Date.now() < cooldownEndTime) {
-                const remainingCooldown = Math.ceil((cooldownEndTime - Date.now()) / 1000);
-                elements.cooldownElement.textContent = `Подождите ${remainingCooldown} секунд`;
-                elements.cooldownElement.classList.add('active');
-                setTimeout(updateCooldownDisplay, 1000);
-            } else {
-                elements.cooldownElement.classList.remove('active');
-                cooldownEndTime = 0;
-                localStorage.removeItem('cooldownEndTime');
             }
         }
 
@@ -680,11 +771,72 @@
             }
         }
 
-        function updateLeaderboard() {
-            // Запрос данных таблицы лидеров у бота
-            tg.sendData(JSON.stringify({
-                action: 'getLeaderboard'
-            }));
+        function updateTasksList() {
+            elements.tasksList.innerHTML = tasks.map(task => `
+                <div class="task-item">
+                    <div class="task-info">
+                        <div>${task.name}</div>
+                        <div class="task-reward">+${task.reward} тапов</div>
+                    </div>
+                    <button 
+                        class="task-button" 
+                        onclick="completeTask('${task.id}')"
+                        ${task.completed ? 'disabled' : ''}>
+                        ${task.completed ? '✅' : 'Выполнить'}
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function completeTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task || task.completed) return;
+
+            const isSubscribed = await checkSubscription(task.channelUsername);
+            if (!isSubscribed) {
+                tg.showPopup({
+                    title: 'Подписка не найдена',
+                    message: 'Пожалуйста, подпишитесь на канал для получения награды',
+                    buttons: [{
+                        type: 'ok',
+                        text: 'OK'
+                    }]
+                });
+                return;
+            }
+
+            task.completed = true;
+            totalTaps += task.reward;
+            saveToStorage('totalTaps', totalTaps);
+            
+            const completedTasks = getFromStorage('completedTasks', []);
+            completedTasks.push(taskId);
+            saveToStorage('completedTasks', completedTasks);
+
+            safeSetTextContent(elements.totalTapsElement, totalTaps);
+            updateTasksList();
+
+            tg.showPopup({
+                title: 'Задание выполнено!',
+                message: `Получено ${task.reward} тапов`,
+                buttons: [{
+                    type: 'ok',
+                    text: '🎉 Круто!'
+                }]
+            });
+        }
+
+        async function checkSubscription(channelUsername) {
+            try {
+                const result = await tg.sendData(JSON.stringify({
+                    action: 'checkSubscription',
+                    channel: channelUsername
+                }));
+                return result;
+            } catch (e) {
+                console.warn('Error checking subscription:', e);
+                return false;
+            }
         }
 
         // Инициализация обработчиков событий
@@ -726,10 +878,6 @@
                         section.classList.remove('active');
                         if (section.id === sectionId) {
                             section.classList.add('active');
-                            
-                            if (sectionId === 'leaderboardSection') {
-                                updateLeaderboard();
-                            }
                         }
                     });
                 });
@@ -742,7 +890,13 @@
             initializeEventListeners();
             updateAchievements();
             updateSkinsGrid();
-            updateLeaderboard();
+            updateTasksList();
+            startStaminaRegen();
+        });
+
+        // Очистка при выходе
+        window.addEventListener('beforeunload', function() {
+            clearInterval(staminaRegenTimeout);
         });
     </script>
 </body>
