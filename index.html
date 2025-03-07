@@ -564,12 +564,53 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+
+        .stat-block {
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 10px;
+            padding: 12px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);
+        }
+
+        .stat-label {
+            color: var(--hint-color);
+            font-size: 14px;
+        }
+
+        .stat-value {
+            color: var(--text-color);
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div id="gameSection" class="section active">
             <div class="score">Счёт: <span id="score">0</span></div>
+            <div class="stats-container">
+                <div class="stat-block">
+                    <div class="stat-label">Скорость</div>
+                    <div class="stat-value"><span id="tapsPerSecond">0</span>/сек</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-label">Баланс</div>
+                    <div class="stat-value"><span id="totalTapsBalance">0</span></div>
+                </div>
+            </div>
             <button class="tap-button" id="tapButton">GO</button>
         </div>
 
@@ -799,7 +840,9 @@
             avatarGrid: document.getElementById('avatarGrid'),
             leaderboardBody: document.getElementById('leaderboardBody'),
             upgradesList: document.getElementById('upgradesList'),
-            settingsButton: document.getElementById('settingsButton')
+            settingsButton: document.getElementById('settingsButton'),
+            tapsPerSecondElement: document.getElementById('tapsPerSecond'),
+            totalTapsBalanceElement: document.getElementById('totalTapsBalance')
         };
 
         // Функция для безопасного обновления текстового содержимого
@@ -927,6 +970,8 @@
             score = 0;
             gameActive = true;
             let timeLeft = GAME_DURATION;
+            let lastTapTime = Date.now();
+            let tapsInLastSecond = 0;
             
             if (elements.scoreElement) {
                 elements.scoreElement.textContent = score;
@@ -934,6 +979,17 @@
             if (elements.tapButton) {
                 elements.tapButton.textContent = timeLeft;
             }
+            if (elements.totalTapsBalanceElement) {
+                elements.totalTapsBalanceElement.textContent = totalTaps;
+            }
+            
+            // Обновление TPS каждую секунду
+            const tpsTimer = setInterval(() => {
+                if (elements.tapsPerSecondElement) {
+                    elements.tapsPerSecondElement.textContent = tapsInLastSecond;
+                }
+                tapsInLastSecond = 0;
+            }, 1000);
             
             timer = setInterval(() => {
                 timeLeft--;
@@ -942,6 +998,7 @@
                 }
                 
                 if (timeLeft <= 0) {
+                    clearInterval(tpsTimer);
                     endGame();
                 }
             }, 1000);
@@ -953,6 +1010,7 @@
 
             score += tapPower;
             totalTaps += tapPower;
+            tapsInLastSecond += tapPower;
             
             saveToStorage('totalTaps', totalTaps);
             
@@ -961,6 +1019,9 @@
             }
             if (elements.totalTapsElement) {
                 elements.totalTapsElement.textContent = totalTaps;
+            }
+            if (elements.totalTapsBalanceElement) {
+                elements.totalTapsBalanceElement.textContent = totalTaps;
             }
             
             updateUpgradesList();
