@@ -1118,29 +1118,23 @@
             
             // Обработка тапов
             if (elements.tapButton) {
-                elements.tapButton.addEventListener('touchstart', handleTap, { passive: false });
-                // Для десктопа оставляем click
-                elements.tapButton.addEventListener('click', function(event) {
-                    // Проверяем, что это не сенсорное устройство
-                    if (!event.sourceCapabilities || !event.sourceCapabilities.firesTouchEvents) {
-                        handleTap(event);
-                    }
+                ['touchstart', 'mousedown'].forEach(eventType => {
+                    elements.tapButton.addEventListener(eventType, function(e) {
+                        e.preventDefault();
+                        handleTap();
+                    }, { passive: false });
                 });
-            }
-
-            // Кнопка старта
-            if (elements.startButton) {
-                elements.startButton.addEventListener('click', startGame);
             }
 
             // Навигация
             document.querySelectorAll('.nav-button').forEach(button => {
-                button.addEventListener('click', () => {
-                    const sectionId = button.dataset.section + 'Section';
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const sectionId = this.dataset.section + 'Section';
                     
                     document.querySelectorAll('.nav-button').forEach(btn => 
                         btn.classList.remove('active'));
-                    button.classList.add('active');
+                    this.classList.add('active');
                     
                     document.querySelectorAll('.section').forEach(section => {
                         section.classList.remove('active');
@@ -1149,6 +1143,13 @@
                         }
                     });
                 });
+            });
+
+            // Отключаем стандартное поведение для всех кнопок
+            document.querySelectorAll('button').forEach(button => {
+                button.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                }, { passive: false });
             });
         }
 
