@@ -211,6 +211,56 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
+        // Загрузка текущих настроек из файлов
+        async function loadCurrentSettings() {
+            try {
+                const [stylesResponse, layoutResponse] = await Promise.all([
+                    fetch('styles.json'),
+                    fetch('layout.json')
+                ]);
+                
+                const styles = await stylesResponse.json();
+                const layout = await layoutResponse.json();
+                
+                // Применяем загруженные стили
+                document.getElementById('mainColor').value = styles.mainColor;
+                document.getElementById('bgColor').value = styles.bgColor;
+                document.getElementById('tapButtonSize').value = styles.tapButtonSize;
+                document.getElementById('customCSS').value = styles.customCSS;
+                
+                // Применяем загруженные настройки макета
+                document.getElementById('scorePosition').value = layout.scorePosition;
+                document.getElementById('tapButtonText').value = layout.tapButtonText;
+                document.getElementById('showStamina').value = layout.showStamina.toString();
+                
+                // Сохраняем в localStorage для совместимости
+                localStorage.setItem('adminSettings', JSON.stringify({
+                    css: styles,
+                    layout: layout
+                }));
+            } catch (e) {
+                console.warn('Error loading settings:', e);
+                // Если файлы не найдены, используем значения по умолчанию
+                const defaultSettings = {
+                    css: {
+                        mainColor: '#2ea6ff',
+                        bgColor: '#ffffff',
+                        tapButtonSize: 200,
+                        customCSS: ''
+                    },
+                    layout: {
+                        scorePosition: 'top',
+                        tapButtonText: 'ТАП!',
+                        showStamina: true
+                    }
+                };
+                localStorage.setItem('adminSettings', JSON.stringify(defaultSettings));
+            }
+        }
+
+        // Загружаем настройки при старте
+        loadCurrentSettings();
+
         // Переключение вкладок
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
@@ -223,40 +273,6 @@
                 document.getElementById(tab.dataset.tab + 'Editor').classList.add('active');
             });
         });
-
-        // Получение текущих настроек
-        let currentSettings = {
-            css: {
-                mainColor: '#2ea6ff',
-                bgColor: '#ffffff',
-                tapButtonSize: 200,
-                customCSS: ''
-            },
-            layout: {
-                scorePosition: 'top',
-                tapButtonText: 'ТАП!',
-                showStamina: true
-            }
-        };
-
-        try {
-            const savedSettings = localStorage.getItem('adminSettings');
-            if (savedSettings) {
-                currentSettings = JSON.parse(savedSettings);
-                
-                // Применяем сохраненные настройки к элементам управления
-                document.getElementById('mainColor').value = currentSettings.css.mainColor;
-                document.getElementById('bgColor').value = currentSettings.css.bgColor;
-                document.getElementById('tapButtonSize').value = currentSettings.css.tapButtonSize;
-                document.getElementById('customCSS').value = currentSettings.css.customCSS;
-                
-                document.getElementById('scorePosition').value = currentSettings.layout.scorePosition;
-                document.getElementById('tapButtonText').value = currentSettings.layout.tapButtonText;
-                document.getElementById('showStamina').value = currentSettings.layout.showStamina;
-            }
-        } catch (e) {
-            console.warn('Error loading settings:', e);
-        }
 
         // Обработчик применения изменений
         document.getElementById('applyChanges').addEventListener('click', () => {
