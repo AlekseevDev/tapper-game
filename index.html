@@ -123,27 +123,30 @@
         }
 
         .tap-button {
-            width: 120px;
-            height: 120px;
+            width: 180px;
+            height: 180px;
             border-radius: 15px;
             background: var(--button-gradient);
             border: none;
             color: var(--text-color);
-            margin: 20px auto;
+            margin: 0 auto;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: transform 0.1s ease-out;
             user-select: none;
-            position: relative;
             overflow: hidden;
             box-shadow: var(--button-glow);
             outline: none;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
             z-index: 1;
-            font-size: 24px;
+            font-size: 32px;
             font-weight: bold;
             will-change: transform;
         }
@@ -159,7 +162,7 @@
             z-index: -1;
             background-size: 200% 200%;
             animation: backgroundShimmer 3s ease infinite;
-            border-radius: 50%;
+            border-radius: 15px;
         }
 
         .tap-button:active {
@@ -568,7 +571,6 @@
     <div class="container">
         <div id="gameSection" class="section active">
             <div class="score">Счёт: <span id="score">0</span></div>
-            <div class="timer" id="timer">Время: 60с</div>
             <button class="tap-button" id="tapButton">GO</button>
         </div>
 
@@ -933,15 +935,9 @@
             if (elements.tapButton) {
                 elements.tapButton.textContent = timeLeft;
             }
-            if (elements.timerElement) {
-                elements.timerElement.textContent = `Время: ${timeLeft}с`;
-            }
             
             timer = setInterval(() => {
                 timeLeft--;
-                if (elements.timerElement) {
-                    elements.timerElement.textContent = `Время: ${timeLeft}с`;
-                }
                 if (elements.tapButton) {
                     elements.tapButton.textContent = timeLeft;
                 }
@@ -980,9 +976,6 @@
             
             if (elements.tapButton) {
                 elements.tapButton.textContent = 'GO';
-            }
-            if (elements.timerElement) {
-                elements.timerElement.textContent = `Время: ${GAME_DURATION}с`;
             }
             
             if (score > bestScore) {
