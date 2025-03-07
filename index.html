@@ -6,25 +6,71 @@
     <title>Тапалка</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        :root {
+            --main-bg-color: var(--tg-theme-bg-color, #fff);
+            --text-color: var(--tg-theme-text-color, #000);
+            --button-color: var(--tg-theme-button-color, #2ea6ff);
+            --button-text-color: var(--tg-theme-button-text-color, #fff);
+            --hint-color: var(--tg-theme-hint-color, #999);
+            --secondary-bg-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 20px;
-            background-color: var(--tg-theme-bg-color, #fff);
-            color: var(--tg-theme-text-color, #000);
+            padding: 0;
+            background-color: var(--main-bg-color);
+            color: var(--text-color);
         }
+
         .container {
             max-width: 500px;
             margin: 0 auto;
-            text-align: center;
+            padding: 20px;
         }
+
+        .nav-menu {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            background: var(--secondary-bg-color);
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .nav-button {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-button.active {
+            background: var(--button-color);
+            color: var(--button-text-color);
+        }
+
+        .section {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .section.active {
+            display: block;
+            opacity: 1;
+        }
+
         .tap-button {
             width: 200px;
             height: 200px;
             border-radius: 50%;
-            background: var(--tg-theme-button-color, #2ea6ff);
+            background: var(--button-color);
             border: none;
-            color: var(--tg-theme-button-text-color, #fff);
+            color: var(--button-text-color);
             font-size: 24px;
             margin: 20px auto;
             display: flex;
@@ -33,58 +79,180 @@
             cursor: pointer;
             transition: transform 0.1s;
             user-select: none;
+            background-size: cover;
+            background-position: center;
         }
+
         .tap-button:active {
             transform: scale(0.95);
         }
+
         .score {
             font-size: 32px;
             margin: 20px 0;
-            color: var(--tg-theme-text-color, #000);
+            text-align: center;
         }
+
         .timer {
             font-size: 24px;
             margin: 10px 0;
-            color: var(--tg-theme-hint-color, #999);
+            text-align: center;
+            color: var(--hint-color);
         }
+
         .start-button {
-            background: var(--tg-theme-button-color, #2ea6ff);
+            background: var(--button-color);
             border: none;
-            color: var(--tg-theme-button-text-color, #fff);
+            color: var(--button-text-color);
             padding: 12px 24px;
             font-size: 18px;
             border-radius: 8px;
-            margin: 10px;
+            margin: 10px auto;
+            display: block;
             cursor: pointer;
         }
+
+        .profile-info {
+            background: var(--secondary-bg-color);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .profile-stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--hint-color);
+        }
+
+        .skins-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            padding: 15px;
+        }
+
+        .skin-item {
+            background: var(--secondary-bg-color);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            position: relative;
+        }
+
+        .skin-preview {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .skin-locked {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            border-radius: 10px;
+        }
+
         .leaderboard {
-            margin-top: 20px;
-            text-align: left;
-            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            background: var(--secondary-bg-color);
             padding: 15px;
             border-radius: 10px;
         }
+
         .leaderboard-item {
             display: flex;
             justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px solid var(--tg-theme-hint-color, #ddd);
+            padding: 10px;
+            margin: 5px 0;
+            background: var(--main-bg-color);
+            border-radius: 5px;
+        }
+
+        .leaderboard-rank {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .achievement {
+            background: var(--secondary-bg-color);
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .achievement.unlocked {
+            background: var(--button-color);
+            color: var(--button-text-color);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="score">Счёт: <span id="score">0</span></div>
-        <div class="timer" id="timer">Время: 30с</div>
-        <button class="tap-button" id="tapButton" disabled>
-            ТАП!
-        </button>
-        <button class="start-button" id="startButton">
-            Начать игру
-        </button>
-        <div class="leaderboard" id="leaderboard">
-            <h3>Таблица лидеров</h3>
-            <div id="leaderboardList"></div>
+        <div class="nav-menu">
+            <button class="nav-button active" data-section="game">🎮 Игра</button>
+            <button class="nav-button" data-section="profile">👤 Профиль</button>
+            <button class="nav-button" data-section="shop">🎨 Скины</button>
+            <button class="nav-button" data-section="leaderboard">🏆 Лидеры</button>
+        </div>
+
+        <div id="gameSection" class="section active">
+            <div class="score">Счёт: <span id="score">0</span></div>
+            <div class="timer" id="timer">Время: 30с</div>
+            <button class="tap-button" id="tapButton" disabled>
+                ТАП!
+            </button>
+            <button class="start-button" id="startButton">
+                Начать игру
+            </button>
+        </div>
+
+        <div id="profileSection" class="section">
+            <div class="profile-info">
+                <h3>Ваш профиль</h3>
+                <div class="profile-stat">
+                    <span>Всего тапов:</span>
+                    <span id="totalTaps">0</span>
+                </div>
+                <div class="profile-stat">
+                    <span>Лучший результат:</span>
+                    <span id="bestScore">0</span>
+                </div>
+                <div class="profile-stat">
+                    <span>Текущий скин:</span>
+                    <span id="currentSkin">Стандартный</span>
+                </div>
+            </div>
+            <div class="achievements">
+                <h3>Достижения</h3>
+                <div id="achievementsList"></div>
+            </div>
+        </div>
+
+        <div id="shopSection" class="section">
+            <h3>Магазин скинов</h3>
+            <div class="skins-grid" id="skinsGrid"></div>
+        </div>
+
+        <div id="leaderboardSection" class="section">
+            <div class="leaderboard">
+                <h3>Таблица лидеров</h3>
+                <div id="leaderboardList"></div>
+            </div>
         </div>
     </div>
 
@@ -92,32 +260,97 @@
         let tg = window.Telegram.WebApp;
         tg.expand();
 
+        // Игровые переменные
         let score = 0;
         let timer = 30;
         let gameInterval;
         let isGameActive = false;
+        let totalTaps = 0;
+        let bestScore = 0;
+        let currentSkin = 'default';
 
-        const tapButton = document.getElementById('tapButton');
-        const startButton = document.getElementById('startButton');
-        const scoreElement = document.getElementById('score');
-        const timerElement = document.getElementById('timer');
-        const leaderboardList = document.getElementById('leaderboardList');
+        // Скины и их условия разблокировки
+        const skins = {
+            default: {
+                name: 'Стандартный',
+                image: 'default.png',
+                unlocked: true,
+                requirement: 0
+            },
+            bronze: {
+                name: 'Бронзовый',
+                image: 'bronze.png',
+                unlocked: false,
+                requirement: 100
+            },
+            silver: {
+                name: 'Серебряный',
+                image: 'silver.png',
+                unlocked: false,
+                requirement: 500
+            },
+            gold: {
+                name: 'Золотой',
+                image: 'gold.png',
+                unlocked: false,
+                requirement: 1000
+            }
+        };
 
-        startButton.addEventListener('click', startGame);
-        tapButton.addEventListener('click', handleTap);
+        // Достижения
+        const achievements = [
+            { id: 'first100', name: '100 тапов', requirement: 100, unlocked: false },
+            { id: 'first500', name: '500 тапов', requirement: 500, unlocked: false },
+            { id: 'first1000', name: '1000 тапов', requirement: 1000, unlocked: false }
+        ];
 
+        // DOM элементы
+        const elements = {
+            tapButton: document.getElementById('tapButton'),
+            startButton: document.getElementById('startButton'),
+            scoreElement: document.getElementById('score'),
+            timerElement: document.getElementById('timer'),
+            totalTapsElement: document.getElementById('totalTaps'),
+            bestScoreElement: document.getElementById('bestScore'),
+            currentSkinElement: document.getElementById('currentSkin'),
+            achievementsList: document.getElementById('achievementsList'),
+            skinsGrid: document.getElementById('skinsGrid'),
+            leaderboardList: document.getElementById('leaderboardList')
+        };
+
+        // Навигация
+        document.querySelectorAll('.nav-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const sectionId = button.dataset.section + 'Section';
+                
+                // Обновляем активную кнопку
+                document.querySelectorAll('.nav-button').forEach(btn => 
+                    btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Показываем нужную секцию
+                document.querySelectorAll('.section').forEach(section => {
+                    section.classList.remove('active');
+                    if (section.id === sectionId) {
+                        section.classList.add('active');
+                    }
+                });
+            });
+        });
+
+        // Функции игры
         function startGame() {
             score = 0;
             timer = 30;
             isGameActive = true;
-            scoreElement.textContent = score;
-            timerElement.textContent = `Время: ${timer}с`;
-            tapButton.disabled = false;
-            startButton.disabled = true;
+            elements.scoreElement.textContent = score;
+            elements.timerElement.textContent = `Время: ${timer}с`;
+            elements.tapButton.disabled = false;
+            elements.startButton.disabled = true;
 
             gameInterval = setInterval(() => {
                 timer--;
-                timerElement.textContent = `Время: ${timer}с`;
+                elements.timerElement.textContent = `Время: ${timer}с`;
 
                 if (timer <= 0) {
                     endGame();
@@ -128,28 +361,37 @@
         function handleTap() {
             if (!isGameActive) return;
             score++;
-            scoreElement.textContent = score;
+            totalTaps++;
+            elements.scoreElement.textContent = score;
+            elements.totalTapsElement.textContent = totalTaps;
             
-            // Анимация нажатия
-            tapButton.style.transform = 'scale(0.95)';
+            checkAchievements();
+            checkSkinUnlocks();
+            
+            elements.tapButton.style.transform = 'scale(0.95)';
             setTimeout(() => {
-                tapButton.style.transform = 'scale(1)';
+                elements.tapButton.style.transform = 'scale(1)';
             }, 100);
         }
 
         function endGame() {
             clearInterval(gameInterval);
             isGameActive = false;
-            tapButton.disabled = true;
-            startButton.disabled = false;
+            elements.tapButton.disabled = true;
+            elements.startButton.disabled = false;
 
-            // Отправляем результат в бота
+            if (score > bestScore) {
+                bestScore = score;
+                elements.bestScoreElement.textContent = bestScore;
+            }
+
             tg.sendData(JSON.stringify({
+                action: 'gameEnd',
                 score: score,
-                action: 'gameEnd'
+                totalTaps: totalTaps,
+                bestScore: bestScore
             }));
 
-            // Показываем результат
             tg.showPopup({
                 title: 'Игра окончена!',
                 message: `Ваш результат: ${score} тапов`,
@@ -160,7 +402,84 @@
             });
         }
 
+        function checkAchievements() {
+            achievements.forEach(achievement => {
+                if (!achievement.unlocked && totalTaps >= achievement.requirement) {
+                    achievement.unlocked = true;
+                    updateAchievements();
+                    tg.showPopup({
+                        title: 'Новое достижение!',
+                        message: `Вы разблокировали: ${achievement.name}`,
+                        buttons: [{
+                            type: 'ok',
+                            text: '🎉 Круто!'
+                        }]
+                    });
+                }
+            });
+        }
+
+        function checkSkinUnlocks() {
+            for (let skinId in skins) {
+                const skin = skins[skinId];
+                if (!skin.unlocked && totalTaps >= skin.requirement) {
+                    skin.unlocked = true;
+                    updateSkinsGrid();
+                    tg.showPopup({
+                        title: 'Новый скин!',
+                        message: `Вы разблокировали скин: ${skin.name}`,
+                        buttons: [{
+                            type: 'ok',
+                            text: '🎨 Круто!'
+                        }]
+                    });
+                }
+            }
+        }
+
+        function updateAchievements() {
+            elements.achievementsList.innerHTML = achievements.map(achievement => `
+                <div class="achievement ${achievement.unlocked ? 'unlocked' : ''}">
+                    <span>${achievement.name}</span>
+                    <span>${achievement.unlocked ? '✅' : `${totalTaps}/${achievement.requirement}`}</span>
+                </div>
+            `).join('');
+        }
+
+        function updateSkinsGrid() {
+            elements.skinsGrid.innerHTML = Object.entries(skins).map(([id, skin]) => `
+                <div class="skin-item">
+                    <div class="skin-preview" style="background-image: url('${skin.image}')"></div>
+                    <p>${skin.name}</p>
+                    ${!skin.unlocked ? `
+                        <div class="skin-locked">
+                            🔒 ${skin.requirement} тапов
+                        </div>
+                    ` : `
+                        <button onclick="selectSkin('${id}')" 
+                                class="start-button" 
+                                ${currentSkin === id ? 'disabled' : ''}>
+                            ${currentSkin === id ? 'Выбран' : 'Выбрать'}
+                        </button>
+                    `}
+                </div>
+            `).join('');
+        }
+
+        function selectSkin(skinId) {
+            if (skins[skinId].unlocked) {
+                currentSkin = skinId;
+                elements.currentSkinElement.textContent = skins[skinId].name;
+                elements.tapButton.style.backgroundImage = `url('${skins[skinId].image}')`;
+                updateSkinsGrid();
+            }
+        }
+
         // Инициализация
+        elements.startButton.addEventListener('click', startGame);
+        elements.tapButton.addEventListener('click', handleTap);
+        updateAchievements();
+        updateSkinsGrid();
         tg.ready();
     </script>
 </body>
