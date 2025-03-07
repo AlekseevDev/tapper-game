@@ -661,14 +661,13 @@
         function checkVersion() {
             const urlParams = new URLSearchParams(window.location.search);
             const serverVersion = urlParams.get('v');
-            const timestamp = urlParams.get('t');
             
-            // Принудительная очистка кэша
-            localStorage.clear();
-            
-            // Всегда перезагружаем страницу с новым timestamp
-            const newUrl = `${window.location.pathname}?v=${APP_VERSION}&t=${Date.now()}`;
-            window.location.href = newUrl;
+            // Перезагружаем страницу только если версии отличаются
+            if (serverVersion && serverVersion !== APP_VERSION) {
+                localStorage.clear();
+                const newUrl = `${window.location.pathname}?v=${APP_VERSION}&t=${Date.now()}`;
+                window.location.href = newUrl;
+            }
         }
 
         // Дожидаемся загрузки Telegram WebApp
