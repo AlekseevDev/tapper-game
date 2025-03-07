@@ -747,6 +747,8 @@
         let score = 0;
         let gameActive = false;
         let timer;
+        let tpsTimer;
+        let tapsInLastSecond = 0;
         let totalTaps = getFromStorage('totalTaps', 0);
         let bestScore = getFromStorage('bestScore', 0);
         let tapPower = getFromStorage('tapPower', 1);
@@ -969,35 +971,27 @@
             
             score = 0;
             gameActive = true;
+            tapsInLastSecond = 0;
             let timeLeft = GAME_DURATION;
-            let tapsInLastSecond = 0;
             
-            if (elements.scoreElement) {
-                elements.scoreElement.textContent = score;
-            }
-            if (elements.tapButton) {
-                elements.tapButton.textContent = timeLeft;
-            }
-            if (elements.totalTapsBalanceElement) {
-                elements.totalTapsBalanceElement.textContent = totalTaps;
-            }
-            if (elements.tapsPerSecondElement) {
-                elements.tapsPerSecondElement.textContent = '0';
-            }
+            // Обновляем начальные значения
+            safeSetTextContent(elements.scoreElement, '0');
+            safeSetTextContent(elements.tapButton, timeLeft);
+            safeSetTextContent(elements.totalTapsBalanceElement, totalTaps);
+            safeSetTextContent(elements.tapsPerSecondElement, '0');
             
             // Обновление TPS каждую секунду
-            const tpsTimer = setInterval(() => {
-                if (elements.tapsPerSecondElement) {
-                    elements.tapsPerSecondElement.textContent = tapsInLastSecond;
-                }
+            if (tpsTimer) clearInterval(tpsTimer);
+            tpsTimer = setInterval(() => {
+                safeSetTextContent(elements.tapsPerSecondElement, tapsInLastSecond);
                 tapsInLastSecond = 0;
             }, 1000);
             
+            // Обновление таймера
+            if (timer) clearInterval(timer);
             timer = setInterval(() => {
                 timeLeft--;
-                if (elements.tapButton) {
-                    elements.tapButton.textContent = timeLeft;
-                }
+                safeSetTextContent(elements.tapButton, timeLeft);
                 
                 if (timeLeft <= 0) {
                     clearInterval(tpsTimer);
@@ -1008,48 +1002,47 @@
 
         // Функция обработки тапа
         function handleTap() {
-            if (!gameActive) return;
+            if (!gameActive) {
+                startGame();
+                return;
+            }
 
             score += tapPower;
             totalTaps += tapPower;
-            tapsInLastSecond += 1;
+            tapsInLastSecond++;
             
             saveToStorage('totalTaps', totalTaps);
             
-            if (elements.scoreElement) {
-                elements.scoreElement.textContent = score;
-            }
-            if (elements.totalTapsElement) {
-                elements.totalTapsElement.textContent = totalTaps;
-            }
-            if (elements.totalTapsBalanceElement) {
-                elements.totalTapsBalanceElement.textContent = totalTaps;
-            }
+            safeSetTextContent(elements.scoreElement, score);
+            safeSetTextContent(elements.totalTapsElement, totalTaps);
+            safeSetTextContent(elements.totalTapsBalanceElement, totalTaps);
             
             updateUpgradesList();
         }
 
         // Функция завершения игры
         function endGame() {
+            gameActive = false;
+            
             if (timer) {
                 clearInterval(timer);
+                timer = null;
             }
-            gameActive = false;
+            
+            if (tpsTimer) {
+                clearInterval(tpsTimer);
+                tpsTimer = null;
+            }
+            
             tapsInLastSecond = 0;
             
-            if (elements.tapButton) {
-                elements.tapButton.textContent = 'GO';
-            }
-            if (elements.tapsPerSecondElement) {
-                elements.tapsPerSecondElement.textContent = '0';
-            }
+            safeSetTextContent(elements.tapButton, 'GO');
+            safeSetTextContent(elements.tapsPerSecondElement, '0');
             
             if (score > bestScore) {
                 bestScore = score;
                 saveToStorage('bestScore', bestScore);
-                if (elements.bestScoreElement) {
-                    elements.bestScoreElement.textContent = bestScore;
-                }
+                safeSetTextContent(elements.bestScoreElement, bestScore);
             }
             
             const tapsPerMinute = Math.round((score / GAME_DURATION) * 60);
