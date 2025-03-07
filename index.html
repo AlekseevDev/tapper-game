@@ -970,7 +970,6 @@
             score = 0;
             gameActive = true;
             let timeLeft = GAME_DURATION;
-            let lastTapTime = Date.now();
             let tapsInLastSecond = 0;
             
             if (elements.scoreElement) {
@@ -981,6 +980,9 @@
             }
             if (elements.totalTapsBalanceElement) {
                 elements.totalTapsBalanceElement.textContent = totalTaps;
+            }
+            if (elements.tapsPerSecondElement) {
+                elements.tapsPerSecondElement.textContent = '0';
             }
             
             // Обновление TPS каждую секунду
@@ -1010,7 +1012,7 @@
 
             score += tapPower;
             totalTaps += tapPower;
-            tapsInLastSecond += tapPower;
+            tapsInLastSecond += 1;
             
             saveToStorage('totalTaps', totalTaps);
             
@@ -1033,9 +1035,13 @@
                 clearInterval(timer);
             }
             gameActive = false;
+            tapsInLastSecond = 0;
             
             if (elements.tapButton) {
                 elements.tapButton.textContent = 'GO';
+            }
+            if (elements.tapsPerSecondElement) {
+                elements.tapsPerSecondElement.textContent = '0';
             }
             
             if (score > bestScore) {
