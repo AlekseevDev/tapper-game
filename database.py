@@ -2,42 +2,43 @@ import sqlite3
 import os
 import logging
 from datetime import datetime
+import threading
 
 logger = logging.getLogger(__name__)
 
 class Database:
+    _instance = None
+    _lock = threading.Lock()
+    
+    def __new__(cls, db_file):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(Database, cls).__new__(cls)
+                    cls._instance.db_file = db_file
+                    cls._instance.init_db()
+        return cls._instance
+
     def __init__(self, db_file):
         self.db_file = db_file
-        # Создаем директорию для базы данных, если её нет
-        os.makedirs(os.path.dirname(os.path.abspath(db_file)), exist_ok=True)
-        
-        # Проверяем соединение с базой данных
-        self._check_connection()
-        
-        # Инициализируем структуру базы данных
-        self._init_db()
-        
-        logger.info(f"Database initialized: {db_file}")
+        self._local = threading.local()
 
-    def _check_connection(self):
-        """Проверка соединения с базой данных"""
-        try:
-            conn = sqlite3.connect(self.db_file)
-            conn.close()
-            logger.info("Database connection successful")
-        except Exception as e:
-            logger.error(f"Database connection error: {e}")
-            raise
+    def get_connection(self):
+        """Получение соединения для текущего потока"""
+        if not hasattr(self._local, 'connection'):
+            self._local.connection = sqlite3.connect(self.db_file, check_same_thread=False)
+            self._local.connection.row_factory = sqlite3.Row
+            self._local.connection.execute('PRAGMA foreign_keys = ON')
+        return self._local.connection
 
-    def _init_db(self):
-        """Инициализация структуры базы данных"""
+    def init_db(self):
+        """Инициализация базы данных"""
+        os.makedirs(os.path.dirname(os.path.abspath(self.db_file)), exist_ok=True)
+        
         conn = sqlite3.connect(self.db_file)
         c = conn.cursor()
 
         try:
-            # Включаем поддержку внешних ключей
-            c.execute('PRAGMA foreign_keys = ON')
-            
             # Создаем таблицу игроков
             c.execute('''CREATE TABLE IF NOT EXISTS players
                         (user_id INTEGER PRIMARY KEY,
@@ -71,7 +72,7 @@ class Database:
             c.execute('CREATE INDEX IF NOT EXISTS idx_score_history_user ON score_history(user_id)')
 
             conn.commit()
-            logger.info("Database structure initialized successfully")
+            logger.info("Database initialized successfully")
 
         except Exception as e:
             conn.rollback()
@@ -82,7 +83,7 @@ class Database:
 
     def get_player(self, user_id):
         """Получение данных игрока"""
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         c = conn.cursor()
 
         try:
@@ -105,13 +106,13 @@ class Database:
             # Формируем данные игрока
             player_data = {
                 'user_id': user_id,
-                'nickname': player[1],
-                'avatar': player[2],
-                'total_taps': player[3],
-                'best_score': player[4],
-                'tap_power': player[5],
-                'taps_per_minute': player[6],
-                'last_updated': player[7]
+                'nickname': player['nickname'],
+                'avatar': player['avatar'],
+                'total_taps': player['total_taps'],
+                'best_score': player['best_score'],
+                'tap_power': player['tap_power'],
+                'taps_per_minute': player['taps_per_minute'],
+                'last_updated': player['last_updated']
             }
             
             logger.info(f"Retrieved player data: {player_data}")
@@ -121,12 +122,10 @@ class Database:
             conn.rollback()
             logger.error(f"Error getting player data: {e}")
             raise
-        finally:
-            conn.close()
 
     def update_player(self, user_id, data):
         """Обновление данных игрока"""
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         c = conn.cursor()
 
         try:
@@ -145,21 +144,15 @@ class Database:
 
             # Обновляем данные игрока
             c.execute('''UPDATE players SET 
-                        nickname = ?,
-                        avatar = ?,
-                        total_taps = ?,
-                        best_score = ?,
-                        tap_power = ?,
-                        taps_per_minute = ?,
+                        nickname = :nickname,
+                        avatar = :avatar,
+                        total_taps = :total_taps,
+                        best_score = :best_score,
+                        tap_power = :tap_power,
+                        taps_per_minute = :taps_per_minute,
                         last_updated = CURRENT_TIMESTAMP
-                        WHERE user_id = ?''',
-                     (update_data['nickname'],
-                      update_data['avatar'],
-                      update_data['total_taps'],
-                      update_data['best_score'],
-                      update_data['tap_power'],
-                      update_data['taps_per_minute'],
-                      user_id))
+                        WHERE user_id = :user_id''',
+                     {**update_data, 'user_id': user_id})
 
             # Если есть новый счет, добавляем его в историю
             if 'score' in data and int(data['score']) > 0:
@@ -173,12 +166,10 @@ class Database:
             conn.rollback()
             logger.error(f"Error updating player data: {e}")
             raise
-        finally:
-            conn.close()
 
     def get_leaderboard(self, limit=500):
         """Получение таблицы лидеров"""
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         c = conn.cursor()
 
         try:
@@ -190,11 +181,11 @@ class Database:
                         LIMIT ?''', (limit,))
             
             leaderboard = [{
-                'user_id': row[0],
-                'nickname': row[1],
-                'avatar': row[2],
-                'tapsPerMinute': row[3],
-                'totalTaps': row[4]
+                'user_id': row['user_id'],
+                'nickname': row['nickname'],
+                'avatar': row['avatar'],
+                'tapsPerMinute': row['taps_per_minute'],
+                'totalTaps': row['total_taps']
             } for row in c.fetchall()]
             
             logger.info(f"Retrieved leaderboard with {len(leaderboard)} entries")
@@ -203,12 +194,10 @@ class Database:
         except Exception as e:
             logger.error(f"Error getting leaderboard: {e}")
             raise
-        finally:
-            conn.close()
 
     def complete_task(self, user_id, task_id):
         """Отметка о выполнении задания"""
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         c = conn.cursor()
 
         try:
@@ -224,12 +213,10 @@ class Database:
             conn.rollback()
             logger.error(f"Error completing task: {e}")
             raise
-        finally:
-            conn.close()
 
     def get_completed_tasks(self, user_id):
         """Получение списка выполненных заданий"""
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         c = conn.cursor()
 
         try:
@@ -241,12 +228,10 @@ class Database:
         except Exception as e:
             logger.error(f"Error getting completed tasks: {e}")
             raise
-        finally:
-            conn.close()
 
     def cleanup_old_records(self, days=30):
         """Очистка старых записей"""
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         c = conn.cursor()
 
         try:
@@ -267,5 +252,3 @@ class Database:
             conn.rollback()
             logger.error(f"Error cleaning up old records: {e}")
             raise
-        finally:
-            conn.close()
