@@ -655,7 +655,7 @@
 
     <script>
         // Версия приложения
-        const APP_VERSION = '2.1.0';
+        const APP_VERSION = '2.1.1';
         
         // Проверка версии и очистка кэша при необходимости
         function checkVersion() {
@@ -663,17 +663,12 @@
             const serverVersion = urlParams.get('v');
             const timestamp = urlParams.get('t');
             
-            // Всегда очищаем кэш при загрузке
+            // Принудительная очистка кэша
             localStorage.clear();
             
-            if (!timestamp || Date.now() - parseInt(timestamp) > 3600000) {
-                // Если прошло больше часа или timestamp отсутствует, перезагружаем страницу
-                const newUrl = `${window.location.pathname}?v=${APP_VERSION}&t=${Date.now()}`;
-                window.location.href = newUrl;
-                return;
-            }
-            
-            localStorage.setItem('appVersion', APP_VERSION);
+            // Всегда перезагружаем страницу с новым timestamp
+            const newUrl = `${window.location.pathname}?v=${APP_VERSION}&t=${Date.now()}`;
+            window.location.href = newUrl;
         }
 
         // Дожидаемся загрузки Telegram WebApp
