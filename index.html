@@ -334,145 +334,79 @@
     </div>
 
     <script>
-        let tg = window.Telegram.WebApp;
+        // Дожидаемся загрузки Telegram WebApp
+        window.Telegram.WebApp.ready();
+        const tg = window.Telegram.WebApp;
         tg.expand();
 
+        // Безопасное получение данных из localStorage
+        function getFromStorage(key, defaultValue) {
+            try {
+                const value = localStorage.getItem(key);
+                return value !== null ? JSON.parse(value) : defaultValue;
+            } catch (e) {
+                console.warn(`Error reading ${key} from localStorage:`, e);
+                return defaultValue;
+            }
+        }
+
+        // Безопасное сохранение данных в localStorage
+        function saveToStorage(key, value) {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (e) {
+                console.warn(`Error saving ${key} to localStorage:`, e);
+            }
+        }
+
+        // Игровые переменные с сохранением в localStorage
         let score = 0;
         let gameActive = false;
         let timer;
         let cooldownTimer;
-        let cooldownEndTime;
+        let cooldownEndTime = getFromStorage('cooldownEndTime', 0);
+        let totalTaps = getFromStorage('totalTaps', 0);
+        let bestScore = getFromStorage('bestScore', 0);
+        let currentSkin = getFromStorage('currentSkin', 'default');
         
-        const GAME_DURATION = 60; // 1 минута
-        const COOLDOWN_DURATION = 120; // 2 минуты
+        const GAME_DURATION = 60;
+        const COOLDOWN_DURATION = 120;
         
-        document.addEventListener('DOMContentLoaded', function() {
-            // ... existing initialization code ...
-            
-            // Prevent zoom on double tap
-            document.addEventListener('touchstart', function(event) {
-                if (event.touches.length > 1) {
-                    event.preventDefault();
-                }
-            }, { passive: false });
-            
-            let lastTapTime = 0;
-            document.addEventListener('touchend', function(event) {
-                const currentTime = new Date().getTime();
-                const tapLength = currentTime - lastTapTime;
-                if (tapLength < 500 && tapLength > 0) {
-                    event.preventDefault();
-                }
-                lastTapTime = currentTime;
-            });
-        });
-
-        function startGame() {
-            if (cooldownEndTime && Date.now() < cooldownEndTime) {
-                const remainingCooldown = Math.ceil((cooldownEndTime - Date.now()) / 1000);
-                document.getElementById('cooldown').textContent = `Подождите ${remainingCooldown} секунд`;
-                document.getElementById('cooldown').classList.add('active');
-                return;
-            }
-            
-            score = 0;
-            gameActive = true;
-            let timeLeft = GAME_DURATION;
-            
-            document.getElementById('score').textContent = score;
-            document.getElementById('tapButton').disabled = false;
-            document.getElementById('startButton').disabled = true;
-            document.getElementById('cooldown').classList.remove('active');
-            
-            timer = setInterval(() => {
-                timeLeft--;
-                document.getElementById('timer').textContent = `Время: ${timeLeft}с`;
-                
-                if (timeLeft <= 0) {
-                    endGame();
-                }
-            }, 1000);
-        }
-
-        function endGame() {
-            clearInterval(timer);
-            gameActive = false;
-            document.getElementById('tapButton').disabled = true;
-            document.getElementById('startButton').disabled = false;
-            document.getElementById('timer').textContent = `Время: ${GAME_DURATION}с`;
-            
-            // Set cooldown
-            cooldownEndTime = Date.now() + (COOLDOWN_DURATION * 1000);
-            updateCooldownDisplay();
-            
-            // Send score to bot
-            tg.sendData(JSON.stringify({
-                score: score,
-                action: 'gameEnd'
-            }));
-        }
-
-        function updateCooldownDisplay() {
-            if (cooldownEndTime) {
-                const remainingCooldown = Math.ceil((cooldownEndTime - Date.now()) / 1000);
-                if (remainingCooldown > 0) {
-                    document.getElementById('cooldown').textContent = `Подождите ${remainingCooldown} секунд`;
-                    document.getElementById('cooldown').classList.add('active');
-                    setTimeout(updateCooldownDisplay, 1000);
-                } else {
-                    document.getElementById('cooldown').classList.remove('active');
-                    cooldownEndTime = null;
-                }
-            }
-        }
-
-        document.getElementById('tapButton').addEventListener('click', function() {
-            if (gameActive) {
-                score++;
-                document.getElementById('score').textContent = score;
-                
-                // Add tap effect
-                this.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    this.style.transform = 'scale(1)';
-                }, 100);
-            }
-        });
-
-        document.getElementById('startButton').addEventListener('click', startGame);
-
-        // Игровые переменные
-        let totalTaps = 0;
-        let bestScore = 0;
-        let currentSkin = 'default';
-
         // Скины и их условия разблокировки
         const skins = {
             default: {
                 name: 'Стандартный',
-                image: 'default.png',
+                image: 'skins/default.png',
                 unlocked: true,
                 requirement: 0
             },
             bronze: {
                 name: 'Бронзовый',
-                image: 'bronze.png',
+                image: 'skins/bronze.png',
                 unlocked: false,
                 requirement: 100
             },
             silver: {
                 name: 'Серебряный',
-                image: 'silver.png',
+                image: 'skins/silver.png',
                 unlocked: false,
                 requirement: 500
             },
             gold: {
                 name: 'Золотой',
-                image: 'gold.png',
+                image: 'skins/gold.png',
                 unlocked: false,
                 requirement: 1000
             }
         };
+
+        // Загрузка состояния разблокированных скинов
+        const unlockedSkins = getFromStorage('unlockedSkins', ['default']);
+        unlockedSkins.forEach(skinId => {
+            if (skins[skinId]) {
+                skins[skinId].unlocked = true;
+            }
+        });
 
         // Достижения
         const achievements = [
@@ -480,6 +414,15 @@
             { id: 'first500', name: '500 тапов', requirement: 500, unlocked: false },
             { id: 'first1000', name: '1000 тапов', requirement: 1000, unlocked: false }
         ];
+
+        // Загрузка состояния достижений
+        const unlockedAchievements = getFromStorage('unlockedAchievements', []);
+        unlockedAchievements.forEach(achievementId => {
+            const achievement = achievements.find(a => a.id === achievementId);
+            if (achievement) {
+                achievement.unlocked = true;
+            }
+        });
 
         // DOM элементы
         const elements = {
@@ -492,34 +435,139 @@
             currentSkinElement: document.getElementById('currentSkin'),
             achievementsList: document.getElementById('achievementsList'),
             skinsGrid: document.getElementById('skinsGrid'),
-            leaderboardList: document.getElementById('leaderboardList')
+            leaderboardList: document.getElementById('leaderboardList'),
+            cooldownElement: document.getElementById('cooldown')
         };
 
-        // Навигация
-        document.querySelectorAll('.nav-button').forEach(button => {
-            button.addEventListener('click', () => {
-                const sectionId = button.dataset.section + 'Section';
+        // Функция для безопасного обновления текстового содержимого
+        function safeSetTextContent(element, text) {
+            if (element) {
+                element.textContent = text;
+            }
+        }
+
+        // Инициализация отображения
+        function initializeDisplay() {
+            safeSetTextContent(elements.totalTapsElement, totalTaps);
+            safeSetTextContent(elements.bestScoreElement, bestScore);
+            safeSetTextContent(elements.currentSkinElement, skins[currentSkin]?.name || 'Стандартный');
+            if (elements.tapButton && skins[currentSkin]) {
+                elements.tapButton.style.backgroundImage = `url('${skins[currentSkin].image}')`;
+            }
+            updateCooldownDisplay();
+        }
+
+        // Обработчик тапа с debounce
+        let tapTimeout = null;
+        function handleTap(event) {
+            if (event) {
+                event.preventDefault();
+            }
+            if (!gameActive || tapTimeout) return;
+
+            tapTimeout = setTimeout(() => {
+                tapTimeout = null;
+            }, 50); // Защита от слишком частых тапов
+
+            score++;
+            totalTaps++;
+            
+            // Сохранение прогресса
+            saveToStorage('totalTaps', totalTaps);
+            
+            safeSetTextContent(elements.scoreElement, score);
+            safeSetTextContent(elements.totalTapsElement, totalTaps);
+            
+            checkAchievements();
+            checkSkinUnlocks();
+        }
+
+        function startGame() {
+            if (cooldownEndTime && Date.now() < cooldownEndTime) {
+                const remainingCooldown = Math.ceil((cooldownEndTime - Date.now()) / 1000);
+                safeSetTextContent(elements.cooldownElement, `Подождите ${remainingCooldown} секунд`);
+                elements.cooldownElement.classList.add('active');
+                return;
+            }
+            
+            score = 0;
+            gameActive = true;
+            let timeLeft = GAME_DURATION;
+            
+            safeSetTextContent(elements.scoreElement, score);
+            if (elements.tapButton) {
+                elements.tapButton.disabled = false;
+            }
+            if (elements.startButton) {
+                elements.startButton.disabled = true;
+            }
+            elements.cooldownElement.classList.remove('active');
+            
+            timer = setInterval(() => {
+                timeLeft--;
+                safeSetTextContent(elements.timerElement, `Время: ${timeLeft}с`);
                 
-                // Обновляем активную кнопку
-                document.querySelectorAll('.nav-button').forEach(btn => 
-                    btn.classList.remove('active'));
-                button.classList.add('active');
-                
-                // Показываем нужную секцию
-                document.querySelectorAll('.section').forEach(section => {
-                    section.classList.remove('active');
-                    if (section.id === sectionId) {
-                        section.classList.add('active');
-                    }
-                });
-            });
-        });
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            if (timer) {
+                clearInterval(timer);
+            }
+            gameActive = false;
+            if (elements.tapButton) {
+                elements.tapButton.disabled = true;
+            }
+            if (elements.startButton) {
+                elements.startButton.disabled = false;
+            }
+            safeSetTextContent(elements.timerElement, `Время: ${GAME_DURATION}с`);
+            
+            if (score > bestScore) {
+                bestScore = score;
+                saveToStorage('bestScore', bestScore);
+                safeSetTextContent(elements.bestScoreElement, bestScore);
+            }
+            
+            cooldownEndTime = Date.now() + (COOLDOWN_DURATION * 1000);
+            saveToStorage('cooldownEndTime', cooldownEndTime);
+            updateCooldownDisplay();
+            
+            try {
+                tg.sendData(JSON.stringify({
+                    action: 'gameEnd',
+                    score: score,
+                    totalTaps: totalTaps,
+                    bestScore: bestScore
+                }));
+            } catch (e) {
+                console.warn('Error sending data to Telegram:', e);
+            }
+        }
+
+        function updateCooldownDisplay() {
+            if (cooldownEndTime && Date.now() < cooldownEndTime) {
+                const remainingCooldown = Math.ceil((cooldownEndTime - Date.now()) / 1000);
+                elements.cooldownElement.textContent = `Подождите ${remainingCooldown} секунд`;
+                elements.cooldownElement.classList.add('active');
+                setTimeout(updateCooldownDisplay, 1000);
+            } else {
+                elements.cooldownElement.classList.remove('active');
+                cooldownEndTime = 0;
+                localStorage.removeItem('cooldownEndTime');
+            }
+        }
 
         function checkAchievements() {
+            let changed = false;
             achievements.forEach(achievement => {
                 if (!achievement.unlocked && totalTaps >= achievement.requirement) {
                     achievement.unlocked = true;
-                    updateAchievements();
+                    changed = true;
+                    
                     tg.showPopup({
                         title: 'Новое достижение!',
                         message: `Вы разблокировали: ${achievement.name}`,
@@ -530,14 +578,24 @@
                     });
                 }
             });
+            
+            if (changed) {
+                const unlockedIds = achievements
+                    .filter(a => a.unlocked)
+                    .map(a => a.id);
+                localStorage.setItem('unlockedAchievements', JSON.stringify(unlockedIds));
+                updateAchievements();
+            }
         }
 
         function checkSkinUnlocks() {
+            let changed = false;
             for (let skinId in skins) {
                 const skin = skins[skinId];
                 if (!skin.unlocked && totalTaps >= skin.requirement) {
                     skin.unlocked = true;
-                    updateSkinsGrid();
+                    changed = true;
+                    
                     tg.showPopup({
                         title: 'Новый скин!',
                         message: `Вы разблокировали скин: ${skin.name}`,
@@ -547,6 +605,13 @@
                         }]
                     });
                 }
+            }
+            
+            if (changed) {
+                const unlockedIds = Object.keys(skins)
+                    .filter(id => skins[id].unlocked);
+                localStorage.setItem('unlockedSkins', JSON.stringify(unlockedIds));
+                updateSkinsGrid();
             }
         }
 
@@ -580,20 +645,79 @@
         }
 
         function selectSkin(skinId) {
-            if (skins[skinId].unlocked) {
+            if (skins[skinId] && skins[skinId].unlocked) {
                 currentSkin = skinId;
+                localStorage.setItem('currentSkin', skinId);
                 elements.currentSkinElement.textContent = skins[skinId].name;
                 elements.tapButton.style.backgroundImage = `url('${skins[skinId].image}')`;
                 updateSkinsGrid();
             }
         }
 
-        // Инициализация
-        elements.startButton.addEventListener('click', startGame);
-        elements.tapButton.addEventListener('click', handleTap);
-        updateAchievements();
-        updateSkinsGrid();
-        tg.ready();
+        function updateLeaderboard() {
+            // Запрос данных таблицы лидеров у бота
+            tg.sendData(JSON.stringify({
+                action: 'getLeaderboard'
+            }));
+        }
+
+        // Инициализация обработчиков событий
+        function initializeEventListeners() {
+            // Предотвращение зума
+            document.addEventListener('touchstart', function(event) {
+                if (event.touches.length > 1) {
+                    event.preventDefault();
+                }
+            }, { passive: false });
+            
+            // Обработка тапов
+            if (elements.tapButton) {
+                elements.tapButton.addEventListener('touchstart', handleTap, { passive: false });
+                // Для десктопа оставляем click
+                elements.tapButton.addEventListener('click', function(event) {
+                    // Проверяем, что это не сенсорное устройство
+                    if (!event.sourceCapabilities || !event.sourceCapabilities.firesTouchEvents) {
+                        handleTap(event);
+                    }
+                });
+            }
+
+            // Кнопка старта
+            if (elements.startButton) {
+                elements.startButton.addEventListener('click', startGame);
+            }
+
+            // Навигация
+            document.querySelectorAll('.nav-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const sectionId = button.dataset.section + 'Section';
+                    
+                    document.querySelectorAll('.nav-button').forEach(btn => 
+                        btn.classList.remove('active'));
+                    button.classList.add('active');
+                    
+                    document.querySelectorAll('.section').forEach(section => {
+                        section.classList.remove('active');
+                        if (section.id === sectionId) {
+                            section.classList.add('active');
+                            
+                            if (sectionId === 'leaderboardSection') {
+                                updateLeaderboard();
+                            }
+                        }
+                    });
+                });
+            });
+        }
+
+        // Запуск инициализации после загрузки DOM
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDisplay();
+            initializeEventListeners();
+            updateAchievements();
+            updateSkinsGrid();
+            updateLeaderboard();
+        });
     </script>
 </body>
 </html> 
