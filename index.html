@@ -917,7 +917,91 @@
             `).join('');
         }
 
-        // Обновление функции handleTap
+        // Инициализация обработчиков событий
+        function initializeEventListeners() {
+            // Предотвращение зума
+            document.addEventListener('touchstart', function(event) {
+                if (event.touches.length > 1) {
+                    event.preventDefault();
+                }
+            }, { passive: false });
+            
+            // Обработка тапов
+            if (elements.tapButton) {
+                elements.tapButton.disabled = true; // Кнопка изначально отключена
+                ['touchstart', 'mousedown'].forEach(eventType => {
+                    elements.tapButton.addEventListener(eventType, function(e) {
+                        e.preventDefault();
+                        handleTap();
+                    }, { passive: false });
+                });
+            }
+
+            // Кнопка старта
+            if (elements.startButton) {
+                elements.startButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    startGame();
+                });
+            }
+
+            // Навигация
+            document.querySelectorAll('.nav-button').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const sectionId = this.dataset.section + 'Section';
+                    
+                    document.querySelectorAll('.nav-button').forEach(btn => 
+                        btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    document.querySelectorAll('.section').forEach(section => {
+                        section.classList.remove('active');
+                        if (section.id === sectionId) {
+                            section.classList.add('active');
+                        }
+                    });
+                });
+            });
+
+            // Кнопка настроек
+            if (elements.settingsButton) {
+                elements.settingsButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    document.querySelectorAll('.section').forEach(section => {
+                        section.classList.remove('active');
+                        if (section.id === 'settingsSection') {
+                            section.classList.add('active');
+                        }
+                    });
+                });
+            }
+        }
+
+        // Функция запуска игры
+        function startGame() {
+            if (gameActive) return;
+            
+            score = 0;
+            gameActive = true;
+            let timeLeft = GAME_DURATION;
+            
+            elements.scoreElement.textContent = score;
+            elements.tapButton.disabled = false;
+            elements.startButton.disabled = true;
+            elements.timerElement.textContent = `Время: ${timeLeft}с`;
+            
+            timer = setInterval(() => {
+                timeLeft--;
+                elements.timerElement.textContent = `Время: ${timeLeft}с`;
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        // Функция обработки тапа
         function handleTap(event) {
             if (event) {
                 event.preventDefault();
@@ -929,31 +1013,27 @@
             
             saveToStorage('totalTaps', totalTaps);
             
-            safeSetTextContent(elements.scoreElement, score);
-            safeSetTextContent(elements.totalTapsElement, totalTaps);
+            elements.scoreElement.textContent = score;
+            elements.totalTapsElement.textContent = totalTaps;
             
             checkAchievements();
             updateUpgradesList();
         }
 
-        // Обновление функции endGame
+        // Функция завершения игры
         function endGame() {
             if (timer) {
                 clearInterval(timer);
             }
             gameActive = false;
-            if (elements.tapButton) {
-                elements.tapButton.disabled = true;
-            }
-            if (elements.startButton) {
-                elements.startButton.disabled = false;
-            }
-            safeSetTextContent(elements.timerElement, `Время: ${GAME_DURATION}с`);
+            elements.tapButton.disabled = true;
+            elements.startButton.disabled = false;
+            elements.timerElement.textContent = `Время: ${GAME_DURATION}с`;
             
             if (score > bestScore) {
                 bestScore = score;
                 saveToStorage('bestScore', bestScore);
-                safeSetTextContent(elements.bestScoreElement, bestScore);
+                elements.bestScoreElement.textContent = bestScore;
             }
             
             const tapsPerMinute = Math.round((score / GAME_DURATION) * 60);
@@ -966,10 +1046,11 @@
                     bestScore: bestScore,
                     tapsPerMinute: tapsPerMinute,
                     nickname: nickname,
-                    avatar: selectedAvatar
+                    avatar: selectedAvatar,
+                    tapPower: tapPower
                 }));
             } catch (e) {
-                console.warn('Error sending data to Telegram:', e);
+                console.warn('Error sending game data:', e);
             }
         }
 
@@ -1107,52 +1188,6 @@
             }
         }
 
-        // Инициализация обработчиков событий
-        function initializeEventListeners() {
-            // Предотвращение зума
-            document.addEventListener('touchstart', function(event) {
-                if (event.touches.length > 1) {
-                    event.preventDefault();
-                }
-            }, { passive: false });
-            
-            // Обработка тапов
-            if (elements.tapButton) {
-                ['touchstart', 'mousedown'].forEach(eventType => {
-                    elements.tapButton.addEventListener(eventType, function(e) {
-                        e.preventDefault();
-                        handleTap();
-                    }, { passive: false });
-                });
-            }
-
-            // Навигация
-            document.querySelectorAll('.nav-button').forEach(button => {
-                button.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const sectionId = this.dataset.section + 'Section';
-                    
-                    document.querySelectorAll('.nav-button').forEach(btn => 
-                        btn.classList.remove('active'));
-                    this.classList.add('active');
-                    
-                    document.querySelectorAll('.section').forEach(section => {
-                        section.classList.remove('active');
-                        if (section.id === sectionId) {
-                            section.classList.add('active');
-                        }
-                    });
-                });
-            });
-
-            // Отключаем стандартное поведение для всех кнопок
-            document.querySelectorAll('button').forEach(button => {
-                button.addEventListener('touchstart', function(e) {
-                    e.preventDefault();
-                }, { passive: false });
-            });
-        }
-
         // Загрузка настроек интерфейса
         async function loadInterfaceSettings() {
             try {
@@ -1221,28 +1256,6 @@
                 clearInterval(leaderboardUpdateTimer);
             }
         });
-
-        // Функция запуска игры
-        function startGame() {
-            if (gameActive) return;
-            
-            score = 0;
-            gameActive = true;
-            let timeLeft = GAME_DURATION;
-            
-            scoreElement.textContent = score;
-            tapButton.disabled = false;
-            startButton.disabled = true;
-            
-            gameTimer = setInterval(() => {
-                timeLeft--;
-                timerElement.textContent = `Время: ${timeLeft}с`;
-                
-                if (timeLeft <= 0) {
-                    endGame();
-                }
-            }, 1000);
-        }
     </script>
 </body>
 </html> 
