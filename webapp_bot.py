@@ -216,25 +216,39 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
         elif data['action'] == 'adminUpdate' and user_id == ADMIN_ID:
             # Обработка обновлений от админ-консоли
-            if 'css' in data:
-                # Сохраняем обновленные стили
-                with open('styles.json', 'w', encoding='utf-8') as f:
-                    json.dump(data['css'], f, ensure_ascii=False, indent=2)
-            
-            if 'layout' in data:
-                # Сохраняем обновленный макет
-                with open('layout.json', 'w', encoding='utf-8') as f:
-                    json.dump(data['layout'], f, ensure_ascii=False, indent=2)
-            
-            # Увеличиваем версию приложения
-            global APP_VERSION
-            version_parts = APP_VERSION.split('.')
-            version_parts[-1] = str(int(version_parts[-1]) + 1)
-            APP_VERSION = '.'.join(version_parts)
-            
-            await update.effective_message.reply_text(
-                f"✅ Изменения применены\nНовая версия: {APP_VERSION}"
-            )
+            try:
+                # Увеличиваем версию приложения
+                global APP_VERSION
+                version_parts = APP_VERSION.split('.')
+                version_parts[-1] = str(int(version_parts[-1]) + 1)
+                APP_VERSION = '.'.join(version_parts)
+                
+                # Сохраняем закодированные настройки для передачи через URL
+                encoded_settings = data.get('settings', '')
+                
+                # Формируем новый URL для веб-приложения с настройками
+                webapp_url = f"{WEBAPP_URL}?v={APP_VERSION}&s={encoded_settings}"
+                
+                # Обновляем кнопку в сообщении
+                keyboard = [[
+                    InlineKeyboardButton(
+                        "🎮 Начать игру",
+                        web_app=WebAppInfo(url=webapp_url)
+                    )
+                ]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                # Отправляем сообщение с обновленной кнопкой
+                await update.effective_message.reply_text(
+                    f"✅ Изменения применены\nНовая версия: {APP_VERSION}",
+                    reply_markup=reply_markup
+                )
+                
+            except Exception as e:
+                logging.error(f"Ошибка при обновлении настроек: {e}")
+                await update.effective_message.reply_text(
+                    "❌ Произошла ошибка при применении настроек."
+                )
             
     except Exception as e:
         logging.error(f"Ошибка при обработке данных веб-приложения: {e}")

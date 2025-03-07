@@ -887,45 +887,46 @@
         // Загрузка настроек интерфейса
         async function loadInterfaceSettings() {
             try {
-                const response = await fetch('styles.json');
-                const cssSettings = await response.json();
+                const urlParams = new URLSearchParams(window.location.search);
+                const encodedSettings = urlParams.get('s');
                 
-                const layoutResponse = await fetch('layout.json');
-                const layoutSettings = await layoutResponse.json();
-                
-                // Применяем CSS настройки
-                document.documentElement.style.setProperty('--button-color', cssSettings.mainColor);
-                document.documentElement.style.setProperty('--main-bg-color', cssSettings.bgColor);
-                
-                if (elements.tapButton) {
-                    elements.tapButton.style.width = `${cssSettings.tapButtonSize}px`;
-                    elements.tapButton.style.height = `${cssSettings.tapButtonSize}px`;
-                }
-                
-                if (cssSettings.customCSS) {
-                    const styleElement = document.createElement('style');
-                    styleElement.textContent = cssSettings.customCSS;
-                    document.head.appendChild(styleElement);
-                }
-                
-                // Применяем настройки макета
-                if (layoutSettings.scorePosition === 'bottom') {
-                    const gameSection = document.getElementById('gameSection');
-                    const scoreElement = document.querySelector('.score');
-                    if (gameSection && scoreElement) {
-                        gameSection.appendChild(scoreElement);
+                if (encodedSettings) {
+                    // Декодируем и применяем настройки из URL
+                    const settings = JSON.parse(atob(encodedSettings));
+                    
+                    // Применяем CSS настройки
+                    document.documentElement.style.setProperty('--button-color', settings.css.mainColor);
+                    document.documentElement.style.setProperty('--main-bg-color', settings.css.bgColor);
+                    
+                    if (elements.tapButton) {
+                        elements.tapButton.style.width = `${settings.css.tapButtonSize}px`;
+                        elements.tapButton.style.height = `${settings.css.tapButtonSize}px`;
                     }
+                    
+                    if (settings.css.customCSS) {
+                        const styleElement = document.createElement('style');
+                        styleElement.textContent = settings.css.customCSS;
+                        document.head.appendChild(styleElement);
+                    }
+                    
+                    // Применяем настройки макета
+                    if (settings.layout.scorePosition === 'bottom') {
+                        const gameSection = document.getElementById('gameSection');
+                        const scoreElement = document.querySelector('.score');
+                        if (gameSection && scoreElement) {
+                            gameSection.appendChild(scoreElement);
+                        }
+                    }
+                    
+                    if (elements.tapButton) {
+                        elements.tapButton.textContent = settings.layout.tapButtonText;
+                    }
+                    
+                    const staminaElements = document.querySelectorAll('.stamina-bar, .stamina-text');
+                    staminaElements.forEach(el => {
+                        el.style.display = settings.layout.showStamina ? 'block' : 'none';
+                    });
                 }
-                
-                if (elements.tapButton) {
-                    elements.tapButton.textContent = layoutSettings.tapButtonText;
-                }
-                
-                const staminaElements = document.querySelectorAll('.stamina-bar, .stamina-text');
-                staminaElements.forEach(el => {
-                    el.style.display = layoutSettings.showStamina ? 'block' : 'none';
-                });
-                
             } catch (e) {
                 console.warn('Error loading interface settings:', e);
             }

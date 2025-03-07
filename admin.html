@@ -294,11 +294,13 @@
             // Сохраняем настройки
             localStorage.setItem('adminSettings', JSON.stringify(settings));
 
-            // Отправляем данные в бот
+            // Кодируем настройки для URL
+            const encodedSettings = btoa(JSON.stringify(settings));
+
+            // Отправляем данные в бот с закодированными настройками
             tg.sendData(JSON.stringify({
                 action: 'adminUpdate',
-                css: settings.css,
-                layout: settings.layout
+                settings: encodedSettings
             }));
 
             // Показываем уведомление
