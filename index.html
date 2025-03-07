@@ -884,6 +884,53 @@
             });
         }
 
+        // Загрузка настроек интерфейса
+        async function loadInterfaceSettings() {
+            try {
+                const response = await fetch('styles.json');
+                const cssSettings = await response.json();
+                
+                const layoutResponse = await fetch('layout.json');
+                const layoutSettings = await layoutResponse.json();
+                
+                // Применяем CSS настройки
+                document.documentElement.style.setProperty('--button-color', cssSettings.mainColor);
+                document.documentElement.style.setProperty('--main-bg-color', cssSettings.bgColor);
+                
+                if (elements.tapButton) {
+                    elements.tapButton.style.width = `${cssSettings.tapButtonSize}px`;
+                    elements.tapButton.style.height = `${cssSettings.tapButtonSize}px`;
+                }
+                
+                if (cssSettings.customCSS) {
+                    const styleElement = document.createElement('style');
+                    styleElement.textContent = cssSettings.customCSS;
+                    document.head.appendChild(styleElement);
+                }
+                
+                // Применяем настройки макета
+                if (layoutSettings.scorePosition === 'bottom') {
+                    const gameSection = document.getElementById('gameSection');
+                    const scoreElement = document.querySelector('.score');
+                    if (gameSection && scoreElement) {
+                        gameSection.appendChild(scoreElement);
+                    }
+                }
+                
+                if (elements.tapButton) {
+                    elements.tapButton.textContent = layoutSettings.tapButtonText;
+                }
+                
+                const staminaElements = document.querySelectorAll('.stamina-bar, .stamina-text');
+                staminaElements.forEach(el => {
+                    el.style.display = layoutSettings.showStamina ? 'block' : 'none';
+                });
+                
+            } catch (e) {
+                console.warn('Error loading interface settings:', e);
+            }
+        }
+
         // Запуск инициализации после загрузки DOM
         document.addEventListener('DOMContentLoaded', function() {
             initializeDisplay();
@@ -892,6 +939,7 @@
             updateSkinsGrid();
             updateTasksList();
             startStaminaRegen();
+            loadInterfaceSettings(); // Загружаем настройки интерфейса
         });
 
         // Очистка при выходе

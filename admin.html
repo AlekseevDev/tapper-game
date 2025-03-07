@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Админ-консоль</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --main-bg-color: var(--tg-theme-bg-color, #fff);
+            --text-color: var(--tg-theme-text-color, #000);
+            --button-color: var(--tg-theme-button-color, #2ea6ff);
+            --button-text-color: var(--tg-theme-button-text-color, #fff);
+            --hint-color: var(--tg-theme-hint-color, #999);
+            --secondary-bg-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--main-bg-color);
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .editor-section {
+            background: var(--secondary-bg-color);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .editor-section h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .control-group input[type="text"],
+        .control-group input[type="number"],
+        .control-group input[type="color"],
+        .control-group select,
+        .control-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--hint-color);
+            border-radius: 5px;
+            background: var(--main-bg-color);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+
+        .control-group textarea {
+            height: 150px;
+            font-family: monospace;
+        }
+
+        .preview {
+            border: 2px dashed var(--hint-color);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .button {
+            background: var(--button-color);
+            color: var(--button-text-color);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .button:hover {
+            opacity: 0.9;
+        }
+
+        .button:active {
+            transform: translateY(1px);
+        }
+
+        .color-picker-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .color-picker-group input[type="color"] {
+            width: 50px;
+            height: 40px;
+            padding: 0;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: var(--secondary-bg-color);
+            padding: 10px;
+            border-radius: 10px;
+            gap: 10px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: var(--text-color);
+        }
+
+        .tab.active {
+            background: var(--button-color);
+            color: var(--button-text-color);
+        }
+
+        #cssEditor, #layoutEditor {
+            display: none;
+        }
+
+        #cssEditor.active, #layoutEditor.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Консоль администратора</h1>
+        
+        <div class="tabs">
+            <button class="tab active" data-tab="css">Стили</button>
+            <button class="tab" data-tab="layout">Макет</button>
+        </div>
+
+        <div id="cssEditor" class="editor-section active">
+            <h2>Редактор стилей</h2>
+            
+            <div class="control-group">
+                <label>Основные цвета</label>
+                <div class="color-picker-group">
+                    <input type="color" id="mainColor" value="#2ea6ff">
+                    <span>Основной цвет</span>
+                </div>
+                <div class="color-picker-group">
+                    <input type="color" id="bgColor" value="#ffffff">
+                    <span>Цвет фона</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Размеры кнопки тапа</label>
+                <input type="number" id="tapButtonSize" value="200" min="100" max="400">
+            </div>
+
+            <div class="control-group">
+                <label>Пользовательские CSS правила</label>
+                <textarea id="customCSS" placeholder="Введите дополнительные CSS правила"></textarea>
+            </div>
+        </div>
+
+        <div id="layoutEditor" class="editor-section">
+            <h2>Редактор макета</h2>
+            
+            <div class="control-group">
+                <label>Расположение счета</label>
+                <select id="scorePosition">
+                    <option value="top">Сверху</option>
+                    <option value="bottom">Снизу</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Текст кнопки</label>
+                <input type="text" id="tapButtonText" value="ТАП!">
+            </div>
+
+            <div class="control-group">
+                <label>Показывать стамину</label>
+                <select id="showStamina">
+                    <option value="true">Да</option>
+                    <option value="false">Нет</option>
+                </select>
+            </div>
+        </div>
+
+        <button id="applyChanges" class="button">Применить изменения</button>
+    </div>
+
+    <script>
+        // Инициализация Telegram WebApp
+        window.Telegram.WebApp.ready();
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        // Переключение вкладок
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Убираем активный класс у всех вкладок
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.editor-section').forEach(s => s.classList.remove('active'));
+                
+                // Добавляем активный класс выбранной вкладке
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab + 'Editor').classList.add('active');
+            });
+        });
+
+        // Получение текущих настроек
+        let currentSettings = {
+            css: {
+                mainColor: '#2ea6ff',
+                bgColor: '#ffffff',
+                tapButtonSize: 200,
+                customCSS: ''
+            },
+            layout: {
+                scorePosition: 'top',
+                tapButtonText: 'ТАП!',
+                showStamina: true
+            }
+        };
+
+        try {
+            const savedSettings = localStorage.getItem('adminSettings');
+            if (savedSettings) {
+                currentSettings = JSON.parse(savedSettings);
+                
+                // Применяем сохраненные настройки к элементам управления
+                document.getElementById('mainColor').value = currentSettings.css.mainColor;
+                document.getElementById('bgColor').value = currentSettings.css.bgColor;
+                document.getElementById('tapButtonSize').value = currentSettings.css.tapButtonSize;
+                document.getElementById('customCSS').value = currentSettings.css.customCSS;
+                
+                document.getElementById('scorePosition').value = currentSettings.layout.scorePosition;
+                document.getElementById('tapButtonText').value = currentSettings.layout.tapButtonText;
+                document.getElementById('showStamina').value = currentSettings.layout.showStamina;
+            }
+        } catch (e) {
+            console.warn('Error loading settings:', e);
+        }
+
+        // Обработчик применения изменений
+        document.getElementById('applyChanges').addEventListener('click', () => {
+            // Собираем текущие настройки
+            const settings = {
+                css: {
+                    mainColor: document.getElementById('mainColor').value,
+                    bgColor: document.getElementById('bgColor').value,
+                    tapButtonSize: parseInt(document.getElementById('tapButtonSize').value),
+                    customCSS: document.getElementById('customCSS').value
+                },
+                layout: {
+                    scorePosition: document.getElementById('scorePosition').value,
+                    tapButtonText: document.getElementById('tapButtonText').value,
+                    showStamina: document.getElementById('showStamina').value === 'true'
+                }
+            };
+
+            // Сохраняем настройки
+            localStorage.setItem('adminSettings', JSON.stringify(settings));
+
+            // Отправляем данные в бот
+            tg.sendData(JSON.stringify({
+                action: 'adminUpdate',
+                css: settings.css,
+                layout: settings.layout
+            }));
+
+            // Показываем уведомление
+            tg.showPopup({
+                title: 'Изменения применены',
+                message: 'Обновления будут доступны после перезагрузки приложения',
+                buttons: [{
+                    type: 'ok'
+                }]
+            });
+        });
+    </script>
+</body>
+</html> 

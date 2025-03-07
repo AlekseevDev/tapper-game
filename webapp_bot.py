@@ -4,6 +4,7 @@ import logging
 from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from dotenv import load_dotenv
+import time
 
 # Загрузка переменных окружения
 load_dotenv()
@@ -17,7 +18,9 @@ logging.basicConfig(
 # Константы
 BOT_TOKEN = "7480394291:AAFm2nXc685V7MR5ZiuXklk3LpXz8YtkqwA"
 WEBAPP_URL = "https://alekseevdev.github.io/tapper-game/"
-APP_VERSION = "2.1.0"  # Обновленная версия приложения
+ADMIN_WEBAPP_URL = "https://alekseevdev.github.io/tapper-game/admin.html"
+APP_VERSION = "2.1.0"
+ADMIN_ID = None  # Будет установлен при первом использовании CONSOLEMOD
 
 # Хранение данных пользователей
 user_data = {}
@@ -116,6 +119,33 @@ async def check_subscription(bot, user_id, channel_username):
         logging.error(f"Error checking subscription: {e}")
         return False
 
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик текстовых сообщений"""
+    global ADMIN_ID
+    
+    if update.message.text == "CONSOLEMOD":
+        # Первый, кто использует CONSOLEMOD, становится администратором
+        if ADMIN_ID is None:
+            ADMIN_ID = update.effective_user.id
+        
+        # Проверяем, является ли пользователь администратором
+        if update.effective_user.id == ADMIN_ID:
+            keyboard = [[
+                InlineKeyboardButton(
+                    "🛠 Открыть консоль администратора",
+                    web_app=WebAppInfo(url=f"{ADMIN_WEBAPP_URL}?v={APP_VERSION}&t={int(time.time())}")
+                )
+            ]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await update.message.reply_text(
+                "🔓 Режим администратора активирован.\n"
+                "Используйте консоль для редактирования интерфейса.",
+                reply_markup=reply_markup
+            )
+        else:
+            await update.message.reply_text("⛔ У вас нет прав администратора.")
+
 async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик данных от веб-приложения"""
     try:
@@ -184,10 +214,32 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     json.dumps({'subscribed': is_subscribed})
                 )
             
+        elif data['action'] == 'adminUpdate' and user_id == ADMIN_ID:
+            # Обработка обновлений от админ-консоли
+            if 'css' in data:
+                # Сохраняем обновленные стили
+                with open('styles.json', 'w', encoding='utf-8') as f:
+                    json.dump(data['css'], f, ensure_ascii=False, indent=2)
+            
+            if 'layout' in data:
+                # Сохраняем обновленный макет
+                with open('layout.json', 'w', encoding='utf-8') as f:
+                    json.dump(data['layout'], f, ensure_ascii=False, indent=2)
+            
+            # Увеличиваем версию приложения
+            global APP_VERSION
+            version_parts = APP_VERSION.split('.')
+            version_parts[-1] = str(int(version_parts[-1]) + 1)
+            APP_VERSION = '.'.join(version_parts)
+            
+            await update.effective_message.reply_text(
+                f"✅ Изменения применены\nНовая версия: {APP_VERSION}"
+            )
+            
     except Exception as e:
         logging.error(f"Ошибка при обработке данных веб-приложения: {e}")
         await update.effective_message.reply_text(
-            "Произошла ошибка при обработке результатов игры."
+            "Произошла ошибка при обработке данных."
         )
 
 def main():
@@ -196,6 +248,7 @@ def main():
     
     # Обработчики команд
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_webapp_data))
     
     # Запуск бота
