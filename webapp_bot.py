@@ -18,9 +18,7 @@ logging.basicConfig(
 # Константы
 BOT_TOKEN = "7480394291:AAFm2nXc685V7MR5ZiuXklk3LpXz8YtkqwA"
 WEBAPP_URL = "https://alekseevdev.github.io/tapper-game/"
-ADMIN_WEBAPP_URL = "https://alekseevdev.github.io/tapper-game/admin.html"
 APP_VERSION = "2.1.0"
-ADMIN_ID = None  # Будет установлен при первом использовании CONSOLEMOD
 
 # Хранение данных пользователей
 user_data = {}
@@ -121,30 +119,8 @@ async def check_subscription(bot, user_id, channel_username):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик текстовых сообщений"""
-    global ADMIN_ID
-    
-    if update.message.text == "CONSOLEMOD":
-        # Первый, кто использует CONSOLEMOD, становится администратором
-        if ADMIN_ID is None:
-            ADMIN_ID = update.effective_user.id
-        
-        # Проверяем, является ли пользователь администратором
-        if update.effective_user.id == ADMIN_ID:
-            keyboard = [[
-                InlineKeyboardButton(
-                    "🛠 Открыть консоль администратора",
-                    web_app=WebAppInfo(url=f"{ADMIN_WEBAPP_URL}?v={APP_VERSION}&t={int(time.time())}")
-                )
-            ]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await update.message.reply_text(
-                "🔓 Режим администратора активирован.\n"
-                "Используйте консоль для редактирования интерфейса.",
-                reply_markup=reply_markup
-            )
-        else:
-            await update.message.reply_text("⛔ У вас нет прав администратора.")
+    # Пустая функция, так как админ-консоль удалена
+    pass
 
 async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик данных от веб-приложения"""
@@ -212,42 +188,6 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 is_subscribed = await check_subscription(context.bot, user_id, channel)
                 await update.effective_message.reply_text(
                     json.dumps({'subscribed': is_subscribed})
-                )
-            
-        elif data['action'] == 'adminUpdate' and user_id == ADMIN_ID:
-            # Обработка обновлений от админ-консоли
-            try:
-                # Увеличиваем версию приложения
-                global APP_VERSION
-                version_parts = APP_VERSION.split('.')
-                version_parts[-1] = str(int(version_parts[-1]) + 1)
-                APP_VERSION = '.'.join(version_parts)
-                
-                # Сохраняем закодированные настройки для передачи через URL
-                encoded_settings = data.get('settings', '')
-                
-                # Формируем новый URL для веб-приложения с настройками
-                webapp_url = f"{WEBAPP_URL}?v={APP_VERSION}&s={encoded_settings}"
-                
-                # Обновляем кнопку в сообщении
-                keyboard = [[
-                    InlineKeyboardButton(
-                        "🎮 Начать игру",
-                        web_app=WebAppInfo(url=webapp_url)
-                    )
-                ]]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                
-                # Отправляем сообщение с обновленной кнопкой
-                await update.effective_message.reply_text(
-                    f"✅ Изменения применены\nНовая версия: {APP_VERSION}",
-                    reply_markup=reply_markup
-                )
-                
-            except Exception as e:
-                logging.error(f"Ошибка при обновлении настроек: {e}")
-                await update.effective_message.reply_text(
-                    "❌ Произошла ошибка при применении настроек."
                 )
             
     except Exception as e:
