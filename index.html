@@ -1513,6 +1513,59 @@
                 clearInterval(leaderboardUpdateTimer);
             }
         });
+
+        // Функция обновления таблицы лидеров
+        async function updateLeaderboard() {
+            try {
+                // Отправляем запрос на получение данных таблицы лидеров
+                tg.sendData(JSON.stringify({
+                    action: 'getLeaderboard'
+                }));
+
+                // Обработчик ответа от бота
+                tg.onEvent('message', function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.leaderboard) {
+                            const currentUserId = tg.initDataUnsafe.user.id;
+                            const leaderboardBody = document.getElementById('leaderboardBody');
+                            
+                            if (leaderboardBody) {
+                                // Очищаем текущую таблицу
+                                leaderboardBody.innerHTML = '';
+                                
+                                // Добавляем новые данные
+                                data.leaderboard.forEach((player, index) => {
+                                    const row = document.createElement('tr');
+                                    const isCurrentUser = player.user_id === currentUserId;
+                                    
+                                    if (isCurrentUser) {
+                                        row.classList.add('current-user');
+                                    }
+                                    
+                                    row.innerHTML = `
+                                        <td>${index + 1}</td>
+                                        <td>
+                                            <div style="display: flex; align-items: center;">
+                                                <div style="width: 24px; height: 24px; border-radius: 50%; background-image: url('${avatars[player.avatar]?.url || avatars.avatar1.url}'); background-size: cover; margin-right: 8px;"></div>
+                                                ${player.nickname}${isCurrentUser ? ' (Вы)' : ''}
+                                            </div>
+                                        </td>
+                                        <td>${player.tapsPerMinute}</td>
+                                    `;
+                                    
+                                    leaderboardBody.appendChild(row);
+                                });
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Error parsing leaderboard data:', e);
+                    }
+                });
+            } catch (e) {
+                console.warn('Error updating leaderboard:', e);
+            }
+        }
     </script>
 </body>
 </html> 
