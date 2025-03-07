@@ -7,6 +7,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from dotenv import load_dotenv
 import time
 from database import Database
+from webapp_database import WebAppDatabase
 
 # Загрузка переменных окружения
 load_dotenv()
@@ -24,10 +25,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Константы
-APP_VERSION = "3.1.0"
+APP_VERSION = "3.4.0"
 
-# Инициализация базы данных
-db = Database('game.db')
+# Пути к базам данных
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+GAME_DB_PATH = os.path.join(BASE_DIR, 'data', 'game.db')
+WEBAPP_DB_PATH = os.path.join(BASE_DIR, 'data', 'webapp.db')
+
+# Создаем директорию для баз данных
+os.makedirs(os.path.join(BASE_DIR, 'data'), exist_ok=True)
+
+# Инициализация баз данных
+db = Database(GAME_DB_PATH)  # для данных бота
+webapp_db = WebAppDatabase(WEBAPP_DB_PATH)  # для данных веб-приложения
 
 async def cleanup_task(context: ContextTypes.DEFAULT_TYPE):
     """Периодическая очистка старых записей"""
@@ -39,9 +49,21 @@ async def cleanup_task(context: ContextTypes.DEFAULT_TYPE):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
+    user_id = update.effective_user.id
+    user_name = update.effective_user.first_name
+    
+    # Создаем пользователя в базе данных при первом запуске
+    try:
+        webapp_db.get_or_create_user(user_id)
+    except Exception as e:
+        logger.error(f"Error creating user {user_id}: {e}")
+
+    # Формируем URL с минимальными параметрами
+    webapp_url = "https://alekseevdev.github.io/tapper-game/"
+
     keyboard = [[InlineKeyboardButton(
         "Играть", 
-        web_app=WebAppInfo(url=f"https://alekseevdev.github.io/tapper-game/?v={APP_VERSION}&t={int(time.time())}")
+        web_app=WebAppInfo(url=webapp_url)
     )]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -60,10 +82,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.bot_data['admin_id'] = update.effective_user.id
             await update.message.reply_text("Вы назначены администратором. Используйте админ-консоль для управления интерфейсом.")
         elif admin_id == update.effective_user.id:
-            # Отправляем админ-консоль
+            # Формируем URL для админ-консоли
+            admin_url = "https://alekseevdev.github.io/tapper-game/admin.html"
+            
             keyboard = [[InlineKeyboardButton(
                 "Открыть админ-консоль", 
-                web_app=WebAppInfo(url=f"https://alekseevdev.github.io/tapper-game/admin.html?v={APP_VERSION}&t={int(time.time())}")
+                web_app=WebAppInfo(url=admin_url)
             )]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await update.message.reply_text("Админ-консоль:", reply_markup=reply_markup)
@@ -73,151 +97,152 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик данных от веб-приложения"""
     try:
-        data = json.loads(update.effective_message.web_app_data.data)
+        # Проверяем, что данные пришли от правильного пользователя
         user_id = update.effective_user.id
-        logger.info(f"Received webapp data: {data} from user {user_id}")
+        if not user_id:
+            logger.error("No user ID in update")
+            await update.message.reply_text("Error: Could not identify user")
+            return
+
+        # Получаем и проверяем данные
+        try:
+            data = json.loads(update.effective_message.web_app_data.data)
+            logger.info(f"Received webapp data: {data} from user {user_id}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON data from user {user_id}: {e}")
+            await update.message.reply_text("Error: Invalid data format")
+            return
         
         if data.get('action') == 'gameEnd':
-            # Получаем текущие данные игрока
-            current_player = db.get_player(user_id)
-            logger.info(f"Current player data: {current_player}")
+            # Получаем текущие данные пользователя
+            current_data = webapp_db.get_or_create_user(user_id)
+            if not current_data:
+                logger.error(f"Could not get/create user {user_id}")
+                await update.message.reply_text("Error: Could not access user data")
+                return
+
+            # Проверяем и нормализуем данные
+            score = max(0, int(data.get('score', 0)))
+            taps_per_minute = max(0, int(data.get('tapsPerMinute', 0)))
+            tap_power = max(1, int(data.get('tapPower', 1)))
+            coins_earned = max(0, int(data.get('coinsEarned', score // 10)))
             
-            # Преобразуем и проверяем все числовые значения
-            try:
-                score = max(0, int(data.get('score', 0)))
-                current_total_taps = max(0, int(current_player.get('total_taps', 0)))
-                current_best_score = max(0, int(current_player.get('best_score', 0)))
-                new_total_taps = current_total_taps + score
-                new_best_score = max(current_best_score, score)
-                taps_per_minute = max(0, int(data.get('tapsPerMinute', 0)))
-                tap_power = max(1, int(data.get('tapPower', current_player.get('tap_power', 1))))
-            except (ValueError, TypeError) as e:
-                logger.error(f"Error converting numeric values: {e}")
-                raise ValueError("Invalid numeric values in game data")
-            
-            player_data = {
-                'nickname': str(data.get('nickname', current_player['nickname'])),
-                'avatar': str(data.get('avatar', current_player['avatar'])),
-                'total_taps': new_total_taps,
-                'best_score': new_best_score,
+            # Подготавливаем обновленные данные с проверкой типов
+            update_data = {
+                'nickname': str(data.get('nickname', current_data['nickname'])),
+                'avatar': str(data.get('avatar', current_data['avatar'])),
+                'total_taps': current_data['total_taps'] + score,
+                'best_score': max(current_data['best_score'], score),
                 'tap_power': tap_power,
-                'taps_per_minute': max(current_player.get('taps_per_minute', 0), taps_per_minute),
-                'score': score
+                'taps_per_minute': max(current_data['taps_per_minute'], taps_per_minute),
+                'coins': current_data['coins'] + coins_earned
             }
             
-            # Обновляем данные в базе
-            db.update_player(user_id, player_data)
-            logger.info(f"Updated player data: {player_data}")
+            try:
+                # Обновляем данные в базе с проверкой успешности
+                webapp_db.update_user_data(user_id, update_data)
+                logger.info(f"Successfully updated data for user {user_id}")
+            except Exception as e:
+                logger.error(f"Failed to update user data for {user_id}: {e}")
+                await update.message.reply_text("Error: Could not save game results")
+                return
+            
+            # Проверяем достижения
+            try:
+                if score > 1000:
+                    webapp_db.record_achievement(current_data['id'], 'high_score', score)
+                if taps_per_minute > 100:
+                    webapp_db.record_achievement(current_data['id'], 'speed_demon', taps_per_minute)
+            except Exception as e:
+                logger.error(f"Failed to record achievements for {user_id}: {e}")
             
             # Формируем сообщение с результатами
             message = (
                 f"🎮 Игра завершена!\n"
                 f"📊 Результат: {score} тапов\n"
                 f"⚡ Тапов в минуту: {taps_per_minute}\n"
-                f"🏆 Всего тапов: {new_total_taps}"
+                f"🏆 Всего тапов: {update_data['total_taps']}\n"
+                f"💰 Получено монет: {coins_earned}"
             )
             
-            if score >= new_best_score:
+            if score >= update_data['best_score']:
                 message += "\n🌟 Новый рекорд!"
             
             await update.message.reply_text(message)
 
         elif data.get('action') == 'getLeaderboard':
-            # Получаем данные таблицы лидеров
-            leaderboard = db.get_leaderboard()
-            logger.info(f"Retrieved leaderboard with {len(leaderboard)} entries")
-            
-            # Получаем текущего игрока
-            current_player = db.get_player(user_id)
-            
-            # Проверяем, есть ли игрок в списке лидеров
-            current_in_list = any(p['user_id'] == user_id for p in leaderboard)
-            
-            # Убеждаемся, что все числовые значения корректны
-            current_taps_per_minute = max(0, int(current_player.get('taps_per_minute', 0)))
-            current_total_taps = max(0, int(current_player.get('total_taps', 0)))
-            
-            if not current_in_list and current_taps_per_minute > 0:
-                # Добавляем игрока в список
-                leaderboard.append({
-                    'user_id': user_id,
-                    'nickname': str(current_player['nickname']),
-                    'avatar': str(current_player['avatar']),
-                    'tapsPerMinute': current_taps_per_minute,
-                    'totalTaps': current_total_taps
-                })
-                
-                # Преобразуем все значения в числа перед сортировкой
-                for entry in leaderboard:
-                    entry['tapsPerMinute'] = max(0, int(entry.get('tapsPerMinute', 0)))
-                    entry['totalTaps'] = max(0, int(entry.get('totalTaps', 0)))
-                
-                # Сортируем список
-                leaderboard.sort(key=lambda x: (x['tapsPerMinute'], x['totalTaps']), reverse=True)
-                logger.info(f"Added current player to leaderboard: {current_player}")
-            
-            response_data = {
-                'leaderboard': leaderboard[:500],
-                'currentUserId': user_id
-            }
-            logger.info(f"Sending leaderboard response with {len(response_data['leaderboard'])} entries")
-            
-            await update.message.reply_text(
-                json.dumps(response_data),
-                disable_web_page_preview=True
-            )
+            try:
+                leaderboard = webapp_db.get_leaderboard()
+                response_data = {
+                    'status': 'success',
+                    'leaderboard': [{
+                        'user_id': entry['telegram_id'],
+                        'nickname': entry['nickname'],
+                        'avatar': entry['avatar'],
+                        'totalTaps': entry['total_taps'],
+                        'bestScore': entry['best_score'],
+                        'tapsPerMinute': entry['taps_per_minute'],
+                        'lastActive': entry['last_active']
+                    } for entry in leaderboard],
+                    'currentUserId': user_id,
+                    'total_players': len(leaderboard)
+                }
+                logger.info(f"Sending leaderboard data: {len(leaderboard)} entries")
+                await update.message.reply_text(json.dumps(response_data))
+            except Exception as e:
+                logger.error(f"Failed to get leaderboard: {e}")
+                await update.message.reply_text(json.dumps({
+                    'status': 'error',
+                    'message': "Could not load leaderboard"
+                }))
 
         elif data.get('action') == 'loadUserData':
-            # Загружаем данные пользователя
-            player = db.get_player(user_id)
-            
-            # Проверяем и конвертируем все числовые значения
             try:
-                player['total_taps'] = max(0, int(player.get('total_taps', 0)))
-                player['best_score'] = max(0, int(player.get('best_score', 0)))
-                player['tap_power'] = max(1, int(player.get('tap_power', 1)))
-                player['taps_per_minute'] = max(0, int(player.get('taps_per_minute', 0)))
-            except (ValueError, TypeError) as e:
-                logger.error(f"Error converting player data: {e}")
-                raise ValueError("Invalid numeric values in player data")
+                player = webapp_db.get_or_create_user(user_id)
+                if not player:
+                    raise ValueError("Could not load user data")
                 
-            logger.info(f"Loading user data for {user_id}: {player}")
-            
-            response_data = {
-                'status': 'success',
-                'data': player
-            }
-            
-            await update.message.reply_text(json.dumps(response_data))
-
-        elif data.get('action') == 'checkSubscription':
-            # Проверяем подписку на канал
-            channel = data.get('channel', '').replace('@', '')
-            try:
-                member = await context.bot.get_chat_member(f"@{channel}", user_id)
-                is_member = member.status in ['member', 'administrator', 'creator']
-                if is_member:
-                    # Отмечаем выполнение задания
-                    db.complete_task(user_id, f"channel_{channel}")
-                    logger.info(f"User {user_id} subscribed to channel {channel}")
-                await update.message.reply_text(json.dumps({'subscribed': is_member}))
+                response_data = {
+                    'status': 'success',
+                    'data': {
+                        'user_id': player['telegram_id'],
+                        'nickname': player['nickname'],
+                        'avatar': player['avatar'],
+                        'total_taps': player['total_taps'],
+                        'best_score': player['best_score'],
+                        'tap_power': player['tap_power'],
+                        'taps_per_minute': player['taps_per_minute'],
+                        'coins': player['coins']
+                    }
+                }
+                await update.message.reply_text(json.dumps(response_data))
+                logger.info(f"Sent user data to client: {response_data}")
             except Exception as e:
-                logger.error(f"Error checking subscription: {e}")
-                await update.message.reply_text(json.dumps({'subscribed': False, 'error': str(e)}))
+                logger.error(f"Failed to load user data for {user_id}: {e}")
+                await update.message.reply_text("Error: Could not load user data")
 
-        elif data.get('action') == 'adminUpdate':
-            # Проверяем права администратора
-            if user_id == context.bot_data.get('admin_id'):
-                # Обновляем версию приложения
-                global APP_VERSION
-                APP_VERSION = data.get('version', APP_VERSION)
-                await update.message.reply_text("✅ Настройки интерфейса обновлены")
-            else:
-                await update.message.reply_text("❌ У вас нет прав администратора")
+        elif data.get('action') == 'updateProfile':
+            try:
+                current_data = webapp_db.get_or_create_user(user_id)
+                if not current_data:
+                    raise ValueError("Could not access user data")
+                
+                update_data = {
+                    'nickname': str(data.get('nickname', current_data['nickname'])),
+                    'avatar': str(data.get('avatar', current_data['avatar']))
+                }
+                webapp_db.update_user_data(user_id, update_data)
+                await update.message.reply_text(json.dumps({'status': 'success'}))
+            except Exception as e:
+                logger.error(f"Failed to update profile for {user_id}: {e}")
+                await update.message.reply_text("Error: Could not update profile")
 
     except Exception as e:
         logger.error(f"Error handling webapp data: {e}")
-        await update.message.reply_text(f"❌ Произошла ошибка: {str(e)}")
+        await update.message.reply_text(json.dumps({
+            'status': 'error',
+            'message': str(e)
+        }))
 
 def main():
     """Запуск бота"""
