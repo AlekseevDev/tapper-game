@@ -713,6 +713,16 @@
         let tapPower = getFromStorage('tapPower', 1);
         let nickname = getFromStorage('nickname', 'Игрок');
         let selectedAvatar = getFromStorage('selectedAvatar', 'avatar1');
+        let currentSkin = getFromStorage('currentSkin', 'default');
+
+        // Скины
+        const skins = {
+            default: {
+                name: 'Стандартный',
+                image: '',
+                unlocked: true
+            }
+        };
 
         // Аватарки
         const avatars = {
@@ -928,20 +938,16 @@
             // Обработка тапов
             if (elements.tapButton) {
                 elements.tapButton.disabled = true; // Кнопка изначально отключена
-                ['touchstart', 'mousedown'].forEach(eventType => {
-                    elements.tapButton.addEventListener(eventType, function(e) {
-                        e.preventDefault();
-                        handleTap();
-                    }, { passive: false });
+                elements.tapButton.addEventListener('click', handleTap);
+                elements.tapButton.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    handleTap();
                 });
             }
 
             // Кнопка старта
             if (elements.startButton) {
-                elements.startButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    startGame();
-                });
+                elements.startButton.addEventListener('click', startGame);
             }
 
             // Навигация
@@ -1001,10 +1007,7 @@
         }
 
         // Функция обработки тапа
-        function handleTap(event) {
-            if (event) {
-                event.preventDefault();
-            }
+        function handleTap() {
             if (!gameActive) return;
 
             score += tapPower;
@@ -1012,8 +1015,12 @@
             
             saveToStorage('totalTaps', totalTaps);
             
-            elements.scoreElement.textContent = score;
-            elements.totalTapsElement.textContent = totalTaps;
+            if (elements.scoreElement) {
+                elements.scoreElement.textContent = score;
+            }
+            if (elements.totalTapsElement) {
+                elements.totalTapsElement.textContent = totalTaps;
+            }
             
             checkAchievements();
             updateUpgradesList();
