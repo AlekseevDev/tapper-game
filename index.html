@@ -181,7 +181,7 @@
             margin: 20px 0;
             text-align: center;
             font-weight: bold;
-            background: linear-gradient(45deg, #8b5cf6, #ffffff);
+            background: var(--button-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: var(--button-glow);
@@ -1146,7 +1146,30 @@
             safeSetTextContent(elements.totalTapsElement, totalTaps);
             safeSetTextContent(elements.totalTapsBalanceElement, totalTaps);
             
+            // Проверяем разблокировку тем после каждого тапа
+            checkThemeUnlocks();
             updateUpgradesList();
+        }
+
+        // Функция проверки и разблокировки тем
+        function checkThemeUnlocks() {
+            const unlockedThemes = getFromStorage('unlockedThemes', ['default']);
+            let themesUpdated = false;
+            
+            document.querySelectorAll('.theme-item').forEach(item => {
+                const theme = item.dataset.theme;
+                const requirement = parseInt(item.dataset.requirement);
+                
+                if (totalTaps >= requirement && !unlockedThemes.includes(theme)) {
+                    unlockedThemes.push(theme);
+                    item.classList.remove('locked');
+                    themesUpdated = true;
+                }
+            });
+            
+            if (themesUpdated) {
+                saveToStorage('unlockedThemes', unlockedThemes);
+            }
         }
 
         // Функция завершения игры
@@ -1276,7 +1299,7 @@
             }
         }
 
-        // Добавляем после initializeEventListeners()
+        // Обновляем функцию initializeThemes
         function initializeThemes() {
             const selectedTheme = getFromStorage('selectedTheme', 'default');
             const unlockedThemes = getFromStorage('unlockedThemes', ['default']);
@@ -1347,18 +1370,20 @@
             };
 
             const themeColors = themes[theme] || themes.default;
+            const mainColor = themeColors.mainColor;
             
             // Обновляем CSS переменные
-            document.documentElement.style.setProperty('--button-gradient', `linear-gradient(45deg, ${themeColors.mainColor}, ${themeColors.mainColor}cc)`);
-            document.documentElement.style.setProperty('--button-glow', `0 0 15px ${themeColors.mainColor}80`);
+            document.documentElement.style.setProperty('--button-gradient', `linear-gradient(45deg, ${mainColor}, ${mainColor}cc)`);
+            document.documentElement.style.setProperty('--button-glow', `0 0 15px ${mainColor}80`);
             document.documentElement.style.setProperty('--main-bg-color', themeColors.bgColor);
-            document.documentElement.style.setProperty('--secondary-bg-color', `${themeColors.mainColor}1a`);
+            document.documentElement.style.setProperty('--secondary-bg-color', `${mainColor}1a`);
             
-            // Обновляем градиент для счета
-            const scoreElement = document.querySelector('.score');
-            if (scoreElement) {
-                scoreElement.style.background = `linear-gradient(45deg, ${themeColors.mainColor}, #ffffff)`;
-            }
+            // Обновляем все элементы, использующие градиент
+            document.querySelectorAll('.score').forEach(el => {
+                el.style.background = `linear-gradient(45deg, ${mainColor}, #ffffff)`;
+                el.style.webkitBackgroundClip = 'text';
+                el.style.webkitTextFillColor = 'transparent';
+            });
         }
 
         // Запуск инициализации после загрузки DOM
