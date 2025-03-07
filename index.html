@@ -1311,6 +1311,11 @@
                     }
                 });
             });
+
+            // Применяем сохраненную тему при загрузке
+            if (selectedTheme && unlockedThemes.includes(selectedTheme)) {
+                applyTheme(selectedTheme);
+            }
         }
 
         function applyTheme(theme) {
@@ -1342,8 +1347,18 @@
             };
 
             const themeColors = themes[theme] || themes.default;
+            
+            // Обновляем CSS переменные
             document.documentElement.style.setProperty('--button-gradient', `linear-gradient(45deg, ${themeColors.mainColor}, ${themeColors.mainColor}cc)`);
             document.documentElement.style.setProperty('--button-glow', `0 0 15px ${themeColors.mainColor}80`);
+            document.documentElement.style.setProperty('--main-bg-color', themeColors.bgColor);
+            document.documentElement.style.setProperty('--secondary-bg-color', `${themeColors.mainColor}1a`);
+            
+            // Обновляем градиент для счета
+            const scoreElement = document.querySelector('.score');
+            if (scoreElement) {
+                scoreElement.style.background = `linear-gradient(45deg, ${themeColors.mainColor}, #ffffff)`;
+            }
         }
 
         // Запуск инициализации после загрузки DOM

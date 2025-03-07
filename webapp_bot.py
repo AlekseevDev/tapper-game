@@ -20,7 +20,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Константы
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.3.1"
 
 # Инициализация базы данных
 db = Database('game.db')
