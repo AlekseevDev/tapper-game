@@ -1371,19 +1371,55 @@
 
             const themeColors = themes[theme] || themes.default;
             const mainColor = themeColors.mainColor;
+            const bgColor = themeColors.bgColor;
             
             // Обновляем CSS переменные
             document.documentElement.style.setProperty('--button-gradient', `linear-gradient(45deg, ${mainColor}, ${mainColor}cc)`);
             document.documentElement.style.setProperty('--button-glow', `0 0 15px ${mainColor}80`);
-            document.documentElement.style.setProperty('--main-bg-color', themeColors.bgColor);
+            document.documentElement.style.setProperty('--main-bg-color', bgColor);
             document.documentElement.style.setProperty('--secondary-bg-color', `${mainColor}1a`);
+            document.documentElement.style.setProperty('--text-color', '#ffffff');
+            document.documentElement.style.setProperty('--hint-color', '#9ca3af');
             
-            // Обновляем все элементы, использующие градиент
+            // Обновляем градиенты и цвета для всех элементов
             document.querySelectorAll('.score').forEach(el => {
-                el.style.background = `linear-gradient(45deg, ${mainColor}, #ffffff)`;
+                el.style.background = `linear-gradient(45deg, ${mainColor}, ${mainColor}ee)`;
                 el.style.webkitBackgroundClip = 'text';
                 el.style.webkitTextFillColor = 'transparent';
             });
+
+            // Обновляем цвета для статистики
+            document.querySelectorAll('.stat-block').forEach(el => {
+                el.style.background = `${mainColor}1a`;
+                el.style.borderColor = `${mainColor}3a`;
+            });
+
+            // Обновляем цвета для кнопок навигации
+            document.querySelectorAll('.nav-button').forEach(el => {
+                if (el.classList.contains('active')) {
+                    el.style.background = `linear-gradient(45deg, ${mainColor}, ${mainColor}cc)`;
+                    el.style.boxShadow = `0 0 15px ${mainColor}80`;
+                } else {
+                    el.style.background = 'transparent';
+                }
+            });
+
+            // Обновляем цвета для секций настроек и профиля
+            document.querySelectorAll('.settings-section, .profile-info, .upgrade-section, .task-item, .achievement').forEach(el => {
+                el.style.background = `${mainColor}1a`;
+                el.style.borderColor = `${mainColor}3a`;
+            });
+
+            // Обновляем цвета для кнопки тапа
+            const tapButton = document.querySelector('.tap-button');
+            if (tapButton) {
+                tapButton.style.background = `${mainColor}1a`;
+                tapButton.style.borderColor = `${mainColor}3a`;
+                tapButton.style.boxShadow = `0 4px 20px ${mainColor}3a`;
+            }
+
+            // Сохраняем выбранную тему
+            saveToStorage('selectedTheme', theme);
         }
 
         // Запуск инициализации после загрузки DOM
