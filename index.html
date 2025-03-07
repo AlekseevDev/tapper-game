@@ -595,6 +595,105 @@
             gap: 10px;
             margin: 10px 0;
         }
+
+        /* Стили для раздела оформления */
+        .themes-section {
+            margin-top: 20px;
+        }
+
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .theme-item {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            position: relative;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .theme-item.selected {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
+        }
+
+        .theme-item.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .theme-color {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            margin: 0 auto 8px;
+        }
+
+        .theme-name {
+            font-size: 14px;
+            color: var(--text-color);
+            margin-bottom: 4px;
+        }
+
+        .theme-requirement {
+            font-size: 12px;
+            color: var(--hint-color);
+        }
+
+        /* Специальные стили для тем */
+        .theme-turquoise .theme-color {
+            background: #40E0D0;
+        }
+
+        .theme-red .theme-color {
+            background: #FF4444;
+        }
+
+        .theme-whitegray .theme-color {
+            background: linear-gradient(45deg, #FFFFFF, #CCCCCC);
+        }
+
+        .theme-orange .theme-color {
+            background: #FFA500;
+        }
+
+        .theme-gold .theme-color {
+            background: linear-gradient(45deg, #FFD700, #FDB931);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .theme-gold .theme-color::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px);
+            background-size: 15px 15px;
+            animation: sparkle 2s linear infinite;
+        }
+
+        @keyframes sparkle {
+            0% {
+                transform: translateY(0) translateX(0);
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-20px) translateX(20px);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -652,6 +751,36 @@
                 <div class="settings-group">
                     <h4>Никнейм</h4>
                     <input type="text" class="nickname-input" id="nicknameInput" placeholder="Введите ваш никнейм" maxlength="20">
+                </div>
+                <div class="settings-group">
+                    <h4>Оформление</h4>
+                    <div class="theme-grid" id="themeGrid">
+                        <div class="theme-item theme-turquoise" data-theme="turquoise" data-requirement="1000">
+                            <div class="theme-color"></div>
+                            <div class="theme-name">Бирюзовый</div>
+                            <div class="theme-requirement">1К</div>
+                        </div>
+                        <div class="theme-item theme-red" data-theme="red" data-requirement="20000">
+                            <div class="theme-color"></div>
+                            <div class="theme-name">Красный</div>
+                            <div class="theme-requirement">20К</div>
+                        </div>
+                        <div class="theme-item theme-whitegray" data-theme="whitegray" data-requirement="200000">
+                            <div class="theme-color"></div>
+                            <div class="theme-name">Бело-серый</div>
+                            <div class="theme-requirement">200К</div>
+                        </div>
+                        <div class="theme-item theme-orange" data-theme="orange" data-requirement="50000000">
+                            <div class="theme-color"></div>
+                            <div class="theme-name">Оранжевый</div>
+                            <div class="theme-requirement">50М</div>
+                        </div>
+                        <div class="theme-item theme-gold" data-theme="gold" data-requirement="1000000000">
+                            <div class="theme-color"></div>
+                            <div class="theme-name">Золотой</div>
+                            <div class="theme-requirement">1МЛРД</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1147,11 +1276,82 @@
             }
         }
 
+        // Добавляем после initializeEventListeners()
+        function initializeThemes() {
+            const selectedTheme = getFromStorage('selectedTheme', 'default');
+            const unlockedThemes = getFromStorage('unlockedThemes', ['default']);
+            
+            document.querySelectorAll('.theme-item').forEach(item => {
+                const theme = item.dataset.theme;
+                const requirement = parseInt(item.dataset.requirement);
+                
+                // Проверяем доступность темы
+                if (totalTaps >= requirement) {
+                    item.classList.remove('locked');
+                    if (!unlockedThemes.includes(theme)) {
+                        unlockedThemes.push(theme);
+                        saveToStorage('unlockedThemes', unlockedThemes);
+                    }
+                } else {
+                    item.classList.add('locked');
+                }
+                
+                // Отмечаем выбранную тему
+                if (theme === selectedTheme) {
+                    item.classList.add('selected');
+                }
+                
+                // Добавляем обработчик клика
+                item.addEventListener('click', () => {
+                    if (!item.classList.contains('locked')) {
+                        document.querySelectorAll('.theme-item').forEach(i => i.classList.remove('selected'));
+                        item.classList.add('selected');
+                        saveToStorage('selectedTheme', theme);
+                        applyTheme(theme);
+                    }
+                });
+            });
+        }
+
+        function applyTheme(theme) {
+            const themes = {
+                default: {
+                    mainColor: '#8b5cf6',
+                    bgColor: '#0a0a0a'
+                },
+                turquoise: {
+                    mainColor: '#40E0D0',
+                    bgColor: '#0a0a0a'
+                },
+                red: {
+                    mainColor: '#FF4444',
+                    bgColor: '#0a0a0a'
+                },
+                whitegray: {
+                    mainColor: '#CCCCCC',
+                    bgColor: '#1a1a1a'
+                },
+                orange: {
+                    mainColor: '#FFA500',
+                    bgColor: '#0a0a0a'
+                },
+                gold: {
+                    mainColor: '#FFD700',
+                    bgColor: '#0a0a0a'
+                }
+            };
+
+            const themeColors = themes[theme] || themes.default;
+            document.documentElement.style.setProperty('--button-gradient', `linear-gradient(45deg, ${themeColors.mainColor}, ${themeColors.mainColor}cc)`);
+            document.documentElement.style.setProperty('--button-glow', `0 0 15px ${themeColors.mainColor}80`);
+        }
+
         // Запуск инициализации после загрузки DOM
         document.addEventListener('DOMContentLoaded', function() {
             initializeDisplay();
             initializeEventListeners();
             initializeAvatars();
+            initializeThemes(); // Добавляем инициализацию тем
             updateUpgradesList();
             
             // Запуск обновления таблицы лидеров
