@@ -125,7 +125,7 @@
         .tap-button {
             width: 120px;
             height: 120px;
-            border-radius: 50%;
+            border-radius: 15px;
             background: var(--button-gradient);
             border: none;
             color: var(--text-color);
@@ -569,10 +569,7 @@
         <div id="gameSection" class="section active">
             <div class="score">Счёт: <span id="score">0</span></div>
             <div class="timer" id="timer">Время: 60с</div>
-            <button class="tap-button" id="tapButton" disabled></button>
-            <button class="start-button" id="startButton">
-                Начать игру
-            </button>
+            <button class="tap-button" id="tapButton">GO</button>
         </div>
 
         <div id="profileSection" class="section">
@@ -791,7 +788,6 @@
         // DOM элементы
         const elements = {
             tapButton: document.getElementById('tapButton'),
-            startButton: document.getElementById('startButton'),
             scoreElement: document.getElementById('score'),
             timerElement: document.getElementById('timer'),
             totalTapsElement: document.getElementById('totalTaps'),
@@ -860,19 +856,21 @@
             
             // Обработка тапов
             if (elements.tapButton) {
-                elements.tapButton.disabled = true; // Кнопка изначально отключена
-                elements.tapButton.addEventListener('click', handleTap);
+                elements.tapButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (!gameActive) {
+                        startGame();
+                    } else {
+                        handleTap();
+                    }
+                });
                 elements.tapButton.addEventListener('touchstart', function(e) {
                     e.preventDefault();
-                    handleTap();
-                });
-            }
-
-            // Кнопка старта
-            if (elements.startButton) {
-                elements.startButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    startGame();
+                    if (!gameActive) {
+                        startGame();
+                    } else {
+                        handleTap();
+                    }
                 });
             }
 
@@ -933,10 +931,7 @@
                 elements.scoreElement.textContent = score;
             }
             if (elements.tapButton) {
-                elements.tapButton.disabled = false;
-            }
-            if (elements.startButton) {
-                elements.startButton.disabled = true;
+                elements.tapButton.textContent = timeLeft;
             }
             if (elements.timerElement) {
                 elements.timerElement.textContent = `Время: ${timeLeft}с`;
@@ -946,6 +941,9 @@
                 timeLeft--;
                 if (elements.timerElement) {
                     elements.timerElement.textContent = `Время: ${timeLeft}с`;
+                }
+                if (elements.tapButton) {
+                    elements.tapButton.textContent = timeLeft;
                 }
                 
                 if (timeLeft <= 0) {
@@ -981,10 +979,7 @@
             gameActive = false;
             
             if (elements.tapButton) {
-                elements.tapButton.disabled = true;
-            }
-            if (elements.startButton) {
-                elements.startButton.disabled = false;
+                elements.tapButton.textContent = 'GO';
             }
             if (elements.timerElement) {
                 elements.timerElement.textContent = `Время: ${GAME_DURATION}с`;
